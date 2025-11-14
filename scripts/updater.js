@@ -1,11 +1,16 @@
 // scripts/updater.js
-const fetch = require('node-fetch');
-const { JSDOM } = require('jsdom');
-const iconv = require('iconv-lite');
-const fs = require('fs');
-const path = require('path');
+import { JSDOM } from 'jsdom';
+import iconv from 'iconv-lite';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-const { GAME_SECTIONS, FLOOD_SECTIONS } = require('../config/forum_sections.js');
+// Получаем __dirname для ES модулей
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Импортируем конфигурацию разделов
+import { GAME_SECTIONS, FLOOD_SECTIONS } from '../config/forum_sections.js';
 
 class ForumParser {
     constructor() {
@@ -26,7 +31,8 @@ class ForumParser {
             }
             
             // Получаем данные как buffer и конвертируем из windows-1251 в utf-8
-            const buffer = await response.buffer();
+            const arrayBuffer = await response.arrayBuffer();
+            const buffer = Buffer.from(arrayBuffer);
             const html = iconv.decode(buffer, 'win1251');
             
             console.log('✅ HTML получен, размер:', html.length, 'символов');
@@ -207,9 +213,9 @@ class ForumParser {
         positive = Math.max(0, positive);
         
         const reputation = {
-            positive_reputation: positive,
-            negative_reputation: 0,
-            net_reputation: positive
+            positive: positive,
+            negative: 0,
+            net: positive
         };
         
         console.log(`✅ Распарсенная репутация:`, reputation);
