@@ -1,5 +1,5 @@
 // scripts/updater.js
-import { JSDOM } from 'jsdom';
+import * as cheerio from 'cheerio';
 import iconv from 'iconv-lite';
 import fs from 'fs';
 import path from 'path';
@@ -10,13 +10,13 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Импортируем конфигурацию разделов
-import { GAME_SECTIONS, FLOOD_SECTIONS } from '../config/forum_sections.js';
+import { SectionUtils } from '../config/forum_sections.js';
 
 class ForumParser {
     constructor() {
         this.memberlistUrl = 'https://warframe.f-rpg.me/userlist.php';
-        this.gameSections = GAME_SECTIONS;
-        this.floodSections = FLOOD_SECTIONS;
+        this.gameSections = SectionUtils.getAllGameSectionIds();  // Теперь это массив [1, 7]
+        this.floodSections = SectionUtils.getAllFloodSectionIds(); // Теперь это массив [9, 10, 11, 12]
     }
 
     async parseMembersList() {
@@ -50,19 +50,18 @@ class ForumParser {
         const players = {};
         
         try {
-            const dom = new JSDOM(html);
-            const doc = dom.window.document;
+            const $ = cheerio.load(html);
 
             // Точный селектор для вашего форума
-            const userTable = doc.querySelector('.usertable table');
+            const userTable = $('.usertable table');
             
-            if (!userTable) {
+            if (!userTable.length) {
                 console.error('❌ Таблица пользователей не найдена');
                 // Попробуем найти любую таблицу с пользователями
-                const tables = doc.querySelectorAll('table');
+                const tables = $('table');
                 console.log('📊 Все таблицы на странице:', tables.length);
-                tables.forEach((table, index) => {
-                    console.log(`Таблица ${index}:`, table.textContent.substring(0, 200));
+                tables.each((index, table) => {
+                    console.log(`Таблица ${index}:`, $(table).text().substring(0, 200));
                 });
                 return players;
             }
@@ -70,22 +69,22 @@ class ForumParser {
             console.log('✅ Найдена таблица пользователей с классом usertable');
 
             // Парсим строки таблицы (пропускаем заголовок thead)
-            const rows = userTable.querySelectorAll('tbody tr');
+            const rows = userTable.find('tbody tr');
             console.log('📋 Найдено строк пользователей:', rows.length);
 
-            rows.forEach((row, index) => {
+            rows.each((index, row) => {
                 try {
-                    const cells = row.querySelectorAll('td');
+                    const cells = $(row).find('td');
                     
                     if (cells.length >= 6) {
                         // Извлекаем имя пользователя из ссылки
-                        const usernameLink = cells[0].querySelector('.usersname a');
-                        const username = usernameLink ? usernameLink.textContent.trim() : cells[0].textContent.trim();
+                        const usernameLink = $(cells[0]).find('.usersname a');
+                        const username = usernameLink.length ? usernameLink.text().trim() : $(cells[0]).text().trim();
                         
                         if (!username || username === '') return;
                         
                         console.log(`👤 Обрабатываем пользователя: ${username}`);
-                        players[username] = this.createPlayerData(username, cells);
+                        players[username] = this.createPlayerData(username, cells, $);
                         
                         // Логируем распарсенные данные для отладки
                         const player = players[username];
@@ -108,33 +107,33 @@ class ForumParser {
         }
     }
 
-    createPlayerData(username, cells) {
+    createPlayerData(username, cells, $) {
         // Извлекаем user_id из ссылки на профиль
-        const profileLink = cells[0].querySelector('a[href*="profile.php?id="]');
-        const userId = profileLink ? this.extractUserId(profileLink.href) : null;
+        const profileLink = $(cells[0]).find('a[href*="profile.php?id="]');
+        const userId = profileLink.length ? this.extractUserId(profileLink.attr('href')) : null;
 
         // Парсим бонусы из статуса (второй столбец)
-        const statusText = cells[1].textContent.trim();
+        const statusText = $(cells[1]).text().trim();
         const bonuses = this.parseBonusesFromStatus(statusText);
         
         // Парсим репутацию (третий столбец)
-        const respectText = cells[2].textContent.trim();
+        const respectText = $(cells[2]).text().trim();
         const reputation = this.parseReputation(respectText);
         
         // Парсим количество сообщений (четвертый столбец)
-        const posts = parseInt(cells[3].textContent) || 0;
+        const posts = parseInt($(cells[3]).text()) || 0;
         
         // Дата регистрации (пятый столбец)
-        const registered = cells[4].textContent.trim();
+        const registered = $(cells[4]).text().trim();
         
         // Последний визит (шестой столбец)
-        const lastOnline = cells[5].textContent.trim();
+        const lastOnline = $(cells[5]).text().trim();
 
         return {
             id: this.generateId(username),
             name: username,
             forum_data: {
-                user_id: userId, // ← ДОБАВЛЕН user_id
+                user_id: userId,
                 status: statusText,
                 respect: respectText,
                 positive_reputation: reputation.positive,
@@ -318,7 +317,7 @@ class EnhancedUpdater {
 
         for (const [username, playerData] of Object.entries(players)) {
             try {
-                console.log(`\n🔍 Анализируем посты игрока: ${username}`);
+                console.log(`🔍 Анализируем посты игрока: ${username}`);
                 
                 // Получаем user_id из данных игрока
                 const userId = playerData.forum_data?.user_id;
@@ -349,7 +348,7 @@ class EnhancedUpdater {
             }
         }
 
-        console.log(`\n🎉 Анализ постов завершен! Обработано игроков: ${processed}`);
+        console.log(`🎉 Анализ постов завершен! Обработано игроков: ${processed}`);
         return updatedPlayers;
     }
 
@@ -407,11 +406,11 @@ async function main() {
         let finalPlayers = players;
         
         if (updatePosts) {
-            console.log('\n🔄 Обновление статистики постов...');
+            console.log('🔄 Обновление статистики постов...');
             const postsUpdater = new EnhancedUpdater();
             finalPlayers = await postsUpdater.updateAllPlayersWithPosts(players);
         } else {
-            console.log('\n⏭️  Пропуск обновления статистики постов (используйте --with-posts для включения)');
+            console.log('⏭️  Пропуск обновления статистики постов (используйте --with-posts для включения)');
         }
         
         // Сохраняем данные
@@ -430,7 +429,7 @@ async function main() {
         console.log('✅ Данные успешно сохранены в players.json');
         
         // Выводим итоговый список
-        console.log('\n📋 Итоговый список пользователей:');
+        console.log('📋 Итоговый список пользователей:');
         Object.keys(finalPlayers).forEach(username => {
             const player = finalPlayers[username];
             const postsInfo = updatePosts && player.forum_data.post_stats ? 
