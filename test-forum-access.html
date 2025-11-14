@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Forum Access</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-result { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        button { padding: 10px 20px; margin: 10px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>🔧 Тест доступа к форуму</h1>
+    
+    <div id="results">
+        <p>Нажмите кнопку для тестирования доступа к вашему форуму</p>
+    </div>
+
+    <button onclick="testForumAccess()">🧪 Протестировать доступ</button>
+    <button onclick="testMemberlist()">👥 Протестировать список пользователей</button>
+
+    <script>
+        async function testForumAccess() {
+            const results = document.getElementById('results');
+            results.innerHTML = '<p>🔍 Проверяем доступ к форуму...</p>';
+
+            try {
+                // Тестируем основной доступ
+                const response = await fetch('https://rusff.me/');
+                if (response.ok) {
+                    results.innerHTML = `
+                        <div class="test-result success">
+                            ✅ Форум доступен! Статус: ${response.status}
+                        </div>
+                    `;
+                } else {
+                    results.innerHTML = `
+                        <div class="test-result error">
+                            ❌ Форум недоступен. Статус: ${response.status}
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                results.innerHTML = `
+                    <div class="test-result error">
+                        ❌ Ошибка доступа: ${error.message}
+                    </div>
+                `;
+            }
+        }
+
+        async function testMemberlist() {
+            const results = document.getElementById('results');
+            results.innerHTML = '<p>🔍 Загружаем список пользователей...</p>';
+
+            try {
+                const response = await fetch('https://rusff.me/memberlist.php');
+                const html = await response.text();
+                
+                // Простой парсинг для проверки структуры
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                
+                // Ищем таблицу пользователей (адаптируйте селектор под ваш форум)
+                const tables = doc.querySelectorAll('table');
+                let foundTable = false;
+                let userCount = 0;
+
+                tables.forEach((table, index) => {
+                    const text = table.textContent;
+                    // Проверяем, есть ли в таблице данные пользователей
+                    if (text.includes('Имя') && text.includes('Сообщений')) {
+                        foundTable = true;
+                        const rows = table.querySelectorAll('tr');
+                        userCount = rows.length - 1; // минус заголовок
+                        
+                        results.innerHTML += `
+                            <div class="test-result success">
+                                ✅ Найдена таблица пользователей (#${index})<br>
+                                📊 Строк пользователей: ${userCount}<br>
+                                🏷️ Заголовки: ${Array.from(rows[0].querySelectorAll('th, td')).map(cell => cell.textContent.trim()).join(' | ')}
+                            </div>
+                        `;
+                    }
+                });
+
+                if (!foundTable) {
+                    results.innerHTML += `
+                        <div class="test-result error">
+                            ❌ Таблица пользователей не найдена<br>
+                            🔍 Доступные таблицы: ${tables.length}
+                        </div>
+                    `;
+                }
+
+            } catch (error) {
+                results.innerHTML = `
+                    <div class="test-result error">
+                        ❌ Ошибка загрузки списка пользователей: ${error.message}
+                    </div>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>
