@@ -1,7 +1,12 @@
 // scripts/updater.js
-const https = require('https');
-const fs = require('fs');
-const path = require('path');
+import https from 'https';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+// Эмуляция __dirname для ES модулей
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 class WarframeUpdater {
     constructor() {
@@ -347,9 +352,7 @@ class WarframeUpdater {
 }
 
 // Запуск обновления
-if (require.main === module) {
-    const updater = new WarframeUpdater();
-    updater.updateData();
-}
+const updater = new WarframeUpdater();
+updater.updateData();
 
-module.exports = WarframeUpdater;
+export default WarframeUpdater;
