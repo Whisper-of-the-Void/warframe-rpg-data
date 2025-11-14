@@ -6,7 +6,7 @@
       "forum_data": {
         "status": "💰+200 ⚡+13% 👁+312%",
         "respect": "+0",
-        "posts": 44,
+        "posts": 45,
         "registered": "2025-10-21",
         "last_online": "Сегодня",
         "days_since_registration": 24
@@ -34,7 +34,7 @@
         "activity_level": "new",
         "activity_score": 0
       },
-      "last_updated": "2025-11-14T12:14:42.654Z"
+      "last_updated": "2025-11-14T12:22:25.533Z"
     },
     "Negan": {
       "id": "negan",
@@ -70,7 +70,7 @@
         "activity_level": "new",
         "activity_score": 0
       },
-      "last_updated": "2025-11-14T12:14:42.656Z"
+      "last_updated": "2025-11-14T12:22:25.535Z"
     },
     "PR-Cephalon": {
       "id": "pr_cephalon",
@@ -106,13 +106,13 @@
         "activity_level": "new",
         "activity_score": 0
       },
-      "last_updated": "2025-11-14T12:14:42.657Z"
+      "last_updated": "2025-11-14T12:22:25.535Z"
     }
   },
-  "last_updated": "2025-11-14T12:14:42.658Z",
+  "last_updated": "2025-11-14T12:22:25.537Z",
   "version": "1.0.0",
   "stats": {
     "total_players": 3,
-    "parsed_at": "2025-11-14T12:14:42.658Z"
+    "parsed_at": "2025-11-14T12:22:25.537Z"
   }
 }
