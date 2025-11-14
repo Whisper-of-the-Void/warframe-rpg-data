@@ -5,6 +5,10 @@ on:
     - cron: '0 */6 * * *'  # Каждые 6 часов
   workflow_dispatch:        # Ручной запуск
 
+# ДОБАВЬТЕ ЭТИ ПРАВА
+permissions:
+  contents: write
+
 jobs:
   update-data:
     runs-on: ubuntu-latest
@@ -12,7 +16,10 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
-      
+      with:
+        # ДОБАВЬТЕ ЭТУ СТРОКУ
+        token: ${{ secrets.GITHUB_TOKEN }}
+        
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
