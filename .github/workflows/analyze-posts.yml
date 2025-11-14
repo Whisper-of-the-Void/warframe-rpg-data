@@ -1,0 +1,40 @@
+name: Analyze User Posts
+
+on:
+  schedule:
+    - cron: '0 2 * * *'  # Каждый день в 2:00
+  workflow_dispatch:      # Ручной запуск
+
+permissions:
+  contents: write
+
+jobs:
+  analyze-posts:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: |
+        npm install node-fetch@^2.6.7 jsdom@^22.0.0 iconv-lite@^0.6.3
+      
+    - name: Run posts analysis
+      run: node scripts/updater.js --with-posts
+      
+    - name: Commit and push changes
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add data/players.json
+        git diff --staged --quiet || git commit -m "Auto-update posts analysis [$(date +'%Y-%m-%d %H:%M')]"
+        git push origin main
