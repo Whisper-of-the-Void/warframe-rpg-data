@@ -4,14 +4,10 @@
   "description": "Data system for Warframe RPG forum game",
   "main": "scripts/updater.js",
   "scripts": {
-    "update": "node scripts/updater.js",
-    "test": "node test-connection.js"
+    "update": "node scripts/updater.js"
   },
   "dependencies": {
     "node-fetch": "^2.6.7",
     "jsdom": "^22.0.0"
-  },
-  "engines": {
-    "node": ">=18"
   }
 }
