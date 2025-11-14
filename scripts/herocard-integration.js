@@ -4,6 +4,7 @@ class HeroCardIntegration {
         this.dataUrl = 'https://whisper-of-the-void.github.io/warframe-rpg-data/data/players.json';
         this.playersData = null;
         this.autoRefreshInterval = null;
+        this.cacheTime = 2 * 60 * 1000; // 2 минуты кэш вместо 5
     }
 
     async init() {
@@ -23,10 +24,16 @@ class HeroCardIntegration {
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             
             const data = await response.json();
+            console.log('📦 Полные данные:', data);
+            
             if (data && data.players && typeof data.players === 'object') {
-                this.playersData = data.players; // ← ИЗМЕНЕНИЕ ЗДЕСЬ: берем data.players
+                this.playersData = data.players;
                 console.log('✅ Данные игроков загружены:', Object.keys(this.playersData).length);
                 console.log('📊 Доступные игроки:', Object.keys(this.playersData));
+                
+                if (this.playersData['Void']) {
+                    console.log('🔍 Данные Void:', this.playersData['Void']);
+                }
             } else {
                 throw new Error('Invalid data structure - missing players object');
             }
@@ -37,150 +44,84 @@ class HeroCardIntegration {
     }
 
     processHeroCards() {
-        console.log('🔍 Поиск постов для обработки...');
+        console.log('🔍 Быстрый поиск карточек...');
         
-        // Ищем все посты на странице
-        const posts = document.querySelectorAll('.post');
-        console.log(`📝 Найдено постов: ${posts.length}`);
+        // Используем более быстрый селектор
+        const heroCards = document.querySelectorAll('.herocard');
+        console.log(`🎯 Найдено карточек: ${heroCards.length}`);
+
+        if (heroCards.length === 0) {
+            console.log('⚠️ Карточки не найдены, возможно страница еще не готова');
+            // Попробуем найти через 1 секунду
+            setTimeout(() => this.processHeroCards(), 1000);
+            return;
+        }
 
         let processedCount = 0;
         
-        posts.forEach(post => {
-            const playerName = this.findPlayerNameForPost(post);
+        // Используем классический цикл for для скорости
+        for (let i = 0; i < heroCards.length; i++) {
+            const card = heroCards[i];
+            const playerName = this.findPlayerNameForCard(card);
             
-            if (playerName) {
-                console.log(`👤 Найден автор поста: "${playerName}"`);
-                
-                // Ищем контейнер для карточки героя
-                const heroCardContainer = post.querySelector('.herocard');
-                
-                if (heroCardContainer) {
-                    // ИЗМЕНЕНИЕ: this.playersData уже содержит объект players
-                    if (this.playersData[playerName]) {
-                        this.fillHeroCard(heroCardContainer, this.playersData[playerName], playerName);
-                        processedCount++;
-                    } else {
-                        console.log(`❌ Данные не найдены для: "${playerName}"`);
-                        console.log(`📋 Доступные игроки:`, Object.keys(this.playersData));
-                        this.showPlayerNotFound(heroCardContainer, playerName);
-                    }
-                } else {
-                    console.log('❌ Контейнер .herocard не найден в посте');
-                }
+            if (playerName && this.playersData[playerName]) {
+                this.fillHeroCard(card, this.playersData[playerName], playerName);
+                processedCount++;
+            } else if (playerName) {
+                this.showPlayerNotFound(card, playerName);
+                processedCount++;
             }
-        });
+        }
 
-        console.log(`✅ Обработано карточек: ${processedCount}`);
+        console.log(`✅ Быстро обработано: ${processedCount}/${heroCards.length}`);
     }
 
-    findPlayerNameForPost(post) {
-        // Способ 1: Ищем в блоке автора
+    findPlayerNameForCard(card) {
+        // Самый быстрый способ - идти от карточки к автору
+        const post = card.closest('.post');
+        if (!post) return null;
+
+        // Прямой поиск автора в посте - самый быстрый путь
         const authorElement = post.querySelector('.pa-author a');
-        if (authorElement) {
-            const name = authorElement.textContent.trim();
-            if (this.isValidPlayerName(name)) {
-                return name;
-            }
-        }
-        
-        // Способ 2: Ищем в заголовке поста
-        const headerAuthor = post.querySelector('h3 a[href^="javascript:to("]');
-        if (headerAuthor) {
-            const name = headerAuthor.textContent.trim();
-            if (this.isValidPlayerName(name)) {
-                return name;
-            }
-        }
-        
-        return null;
-    }
-
-    isValidPlayerName(name) {
-        return name && 
-               name.length > 1 && 
-               name.length < 50 &&
-               !name.includes('@') && 
-               !name.includes('Автор') &&
-               !name.includes('Имя') &&
-               !name.match(/^\d+$/) &&
-               name !== 'Зарегистрирован' &&
-               name !== 'Последний визит';
+        return authorElement ? authorElement.textContent.trim() : null;
     }
 
     fillHeroCard(container, playerData, playerName) {
-        console.log(`🎨 Заполняем карточку для: ${playerName}`, playerData);
-        container.innerHTML = this.createHeroCardHTML(playerData, playerName);
-    }
+        // Создаем HTML напрямую для скорости
+        const reputation = playerData.forum_data?.positive_reputation || 0;
+        const posts = playerData.forum_data?.posts || 0;
+        const credits = playerData.game_stats?.credits || 0;
+        const infection = playerData.game_stats?.infection?.total || 0;
+        const whisper = playerData.game_stats?.whisper?.total || 0;
+        const bonuses = playerData.bonuses || {};
+        const onForum = playerData.forum_data?.days_since_registration || 'Неизвестно';
+        const lastSeen = playerData.forum_data?.last_online || 'Неизвестно';
+        const lastUpdated = playerData.last_updated || new Date().toISOString();
 
-    createHeroCardHTML(player, playerName) {
-        // Безопасное извлечение данных
-        const reputation = player.forum_data?.positive_reputation || 0;
-        const posts = player.forum_data?.posts || 0;
-        const credits = player.game_stats?.credits || 0;
-        const infection = player.game_stats?.infection?.total || 0;
-        const whisper = player.game_stats?.whisper?.total || 0;
-        const bonuses = player.bonuses || {};
-        const onForum = player.forum_data?.days_since_registration || 'Неизвестно';
-        const lastSeen = player.forum_data?.last_online || 'Неизвестно';
-        const lastUpdated = player.last_updated || new Date().toISOString();
+        // Быстрое создание HTML без шаблонных строк
+        const html = [
+            '<div class="warframe-herocard">',
+            '<div class="herocard-header">',
+            '<h3 class="herocard-title">🎮 ' + playerName + '</h3>',
+            '<div class="herocard-badges">',
+            '<span class="badge reputation">⭐ ' + reputation + '</span>',
+            '<span class="badge posts">📊 ' + posts + '</span>',
+            '</div></div>',
+            '<div class="herocard-stats">',
+            '<div class="stat-row"><span class="stat-label">💰 Кредиты:</span><span class="stat-value credits">' + credits.toLocaleString() + '</span></div>',
+            '<div class="stat-row"><span class="stat-label">⚡ Заражение:</span><span class="stat-value infection" style="color:' + this.getInfectionColor(infection) + '">' + infection + '% ' + this.getInfectionIcon(infection) + '</span></div>',
+            '<div class="stat-row"><span class="stat-label">👁 Шёпот:</span><span class="stat-value whisper" style="color:' + this.getWhisperColor(whisper) + '">' + whisper + '% ' + this.getWhisperIcon(whisper) + '</span></div>',
+            '</div>',
+            '<div class="herocard-meta">',
+            '<div class="meta-item"><span class="meta-label">📅 На форуме:</span><span class="meta-value">' + onForum + ' дн.</span></div>',
+            '<div class="meta-item"><span class="meta-label">🕐 Был:</span><span class="meta-value">' + lastSeen + '</span></div>',
+            '</div>',
+            '<div class="herocard-bonuses">' + this.renderBonuses(bonuses) + '</div>',
+            '<div class="herocard-footer"><small>Обновлено: ' + new Date(lastUpdated).toLocaleTimeString() + '</small></div>',
+            '</div>'
+        ].join('');
 
-        // Определяем цвета и иконки
-        const infectionColor = this.getInfectionColor(infection);
-        const whisperColor = this.getWhisperColor(whisper);
-        const infectionIcon = this.getInfectionIcon(infection);
-        const whisperIcon = this.getWhisperIcon(whisper);
-
-        return `
-            <div class="warframe-herocard">
-                <div class="herocard-header">
-                    <h3 class="herocard-title">🎮 ${playerName}</h3>
-                    <div class="herocard-badges">
-                        <span class="badge reputation">⭐ ${reputation}</span>
-                        <span class="badge posts">📊 ${posts}</span>
-                    </div>
-                </div>
-                
-                <div class="herocard-stats">
-                    <div class="stat-row">
-                        <span class="stat-label">💰 Кредиты:</span>
-                        <span class="stat-value credits">${credits.toLocaleString()}</span>
-                    </div>
-                    
-                    <div class="stat-row">
-                        <span class="stat-label">⚡ Заражение:</span>
-                        <span class="stat-value infection" style="color: ${infectionColor}">
-                            ${infection}% ${infectionIcon}
-                        </span>
-                    </div>
-                    
-                    <div class="stat-row">
-                        <span class="stat-label">👁 Шёпот:</span>
-                        <span class="stat-value whisper" style="color: ${whisperColor}">
-                            ${whisper}% ${whisperIcon}
-                        </span>
-                    </div>
-                </div>
-                
-                <div class="herocard-meta">
-                    <div class="meta-item">
-                        <span class="meta-label">📅 На форуме:</span>
-                        <span class="meta-value">${onForum} дн.</span>
-                    </div>
-                    <div class="meta-item">
-                        <span class="meta-label">🕐 Был:</span>
-                        <span class="meta-value">${lastSeen}</span>
-                    </div>
-                </div>
-                
-                <div class="herocard-bonuses">
-                    ${this.renderBonuses(bonuses)}
-                </div>
-                
-                <div class="herocard-footer">
-                    <small>Обновлено: ${new Date(lastUpdated).toLocaleTimeString()}</small>
-                </div>
-            </div>
-        `;
+        container.innerHTML = html;
     }
 
     renderBonuses(bonuses) {
@@ -190,38 +131,32 @@ class HeroCardIntegration {
         
         const bonusEntries = [];
         if (bonuses.credits) {
-            bonusEntries.push(`<div class="bonus-item"><small>Бонус кредитов: ${bonuses.credits > 0 ? '+' : ''}${bonuses.credits}</small></div>`);
+            bonusEntries.push('<div class="bonus-item"><small>Бонус кредитов: ' + (bonuses.credits > 0 ? '+' : '') + bonuses.credits + '</small></div>');
         }
         if (bonuses.infection) {
-            bonusEntries.push(`<div class="bonus-item"><small>Бонус заражения: ${bonuses.infection > 0 ? '+' : ''}${bonuses.infection}%</small></div>`);
+            bonusEntries.push('<div class="bonus-item"><small>Бонус заражения: ' + (bonuses.infection > 0 ? '+' : '') + bonuses.infection + '%</small></div>');
         }
         if (bonuses.whisper) {
-            bonusEntries.push(`<div class="bonus-item"><small>Бонус шёпота: ${bonuses.whisper > 0 ? '+' : ''}${bonuses.whisper}%</small></div>`);
+            bonusEntries.push('<div class="bonus-item"><small>Бонус шёпота: ' + (bonuses.whisper > 0 ? '+' : '') + bonuses.whisper + '%</small></div>');
         }
         
         return bonusEntries.join('');
     }
 
     showPlayerNotFound(container, playerName) {
-        container.innerHTML = `
-            <div class="warframe-herocard">
-                <div class="herocard-header">
-                    <h3 class="herocard-title">🎮 ${playerName}</h3>
-                    <div class="herocard-badges">
-                        <span class="badge reputation">❌ Не в игре</span>
-                    </div>
-                </div>
-                <div class="herocard-stats">
-                    <div class="stat-row">
-                        <span class="stat-label">Статус:</span>
-                        <span class="stat-value">Данные не найдены</span>
-                    </div>
-                </div>
-                <div class="herocard-footer">
-                    <small>Проверьте наличие игрока в системе RPG</small>
-                </div>
-            </div>
-        `;
+        container.innerHTML = [
+            '<div class="warframe-herocard">',
+            '<div class="herocard-header">',
+            '<h3 class="herocard-title">🎮 ' + playerName + '</h3>',
+            '<div class="herocard-badges">',
+            '<span class="badge reputation">❌ Не в игре</span>',
+            '</div></div>',
+            '<div class="herocard-stats">',
+            '<div class="stat-row"><span class="stat-label">Статус:</span><span class="stat-value">Данные не найдены</span></div>',
+            '</div>',
+            '<div class="herocard-footer"><small>Проверьте наличие игрока в системе RPG</small></div>',
+            '</div>'
+        ].join('');
     }
 
     getInfectionColor(level) {
@@ -257,20 +192,21 @@ class HeroCardIntegration {
             clearInterval(this.autoRefreshInterval);
         }
 
+        // Уменьшаем интервал до 2 минут
         this.autoRefreshInterval = setInterval(() => {
-            console.log('🔄 Автообновление карточек героев...');
+            console.log('🔄 Быстрое обновление карточек...');
             this.loadPlayersData()
                 .then(() => {
                     this.processHeroCards();
-                    console.log('✅ Карточки героев обновлены');
+                    console.log('✅ Карточки быстро обновлены');
                 })
                 .catch(error => {
-                    console.error('❌ Ошибка автообновления:', error);
+                    console.error('❌ Ошибка обновления:', error);
                     this.processHeroCards();
                 });
-        }, 5 * 60 * 1000);
+        }, this.cacheTime);
 
-        console.log('✅ Автообновление карточек запущено (каждые 5 минут)');
+        console.log('✅ Быстрое автообновление запущено (каждые 2 минуты)');
     }
 
     stopAutoRefresh() {
@@ -282,18 +218,18 @@ class HeroCardIntegration {
     }
 
     async forceRefresh() {
-        console.log('🔄 Принудительное обновление карточек...');
+        console.log('🔄 Принудительное быстрое обновление...');
         try {
             await this.loadPlayersData();
             this.processHeroCards();
-            console.log('✅ Карточки принудительно обновлены');
+            console.log('✅ Карточки быстро обновлены');
         } catch (error) {
-            console.error('❌ Ошибка принудительного обновления:', error);
+            console.error('❌ Ошибка обновления:', error);
         }
     }
 }
 
-// Стили для карточки
+// Стили для карточки (оставляем без изменений)
 const heroCardStyles = `
     <style>
         .warframe-herocard {
@@ -419,13 +355,13 @@ const heroCardStyles = `
         
         /* Анимация появления */
         .warframe-herocard {
-            animation: cardAppear 0.5s ease-out;
+            animation: cardAppear 0.3s ease-out;
         }
         
         @keyframes cardAppear {
             from {
                 opacity: 0;
-                transform: translateY(10px);
+                transform: translateY(5px);
             }
             to {
                 opacity: 1;
@@ -435,33 +371,37 @@ const heroCardStyles = `
     </style>
 `;
 
-// Инициализация при загрузке страницы
+// Оптимизированная инициализация
 document.addEventListener('DOMContentLoaded', () => {
-    // Добавляем стили в head
+    // Быстро добавляем стили
     if (!document.querySelector('style[data-herocard]')) {
-        document.head.insertAdjacentHTML('beforeend', heroCardStyles);
+        const styleEl = document.createElement('style');
+        styleEl.setAttribute('data-herocard', '');
+        styleEl.textContent = heroCardStyles;
+        document.head.appendChild(styleEl);
     }
     
-    // Инициализируем интеграцию
+    // Быстрая инициализация
     const heroCardSystem = new HeroCardIntegration();
     heroCardSystem.init();
     
-    // Делаем систему доступной глобально для отладки
     window.heroCardSystem = heroCardSystem;
     
-    console.log('🎮 Система HeroCard инициализирована');
+    console.log('🎮 Система HeroCard быстро инициализирована');
 });
 
-// Обновляем при изменении страницы (для AJAX-навигации)
+// Оптимизированный наблюдатель для AJAX-навигации
 if (typeof window !== 'undefined') {
     let lastUrl = location.href;
-    new MutationObserver(() => {
+    const observer = new MutationObserver(() => {
         const url = location.href;
         if (url !== lastUrl) {
             lastUrl = url;
             if (window.heroCardSystem) {
-                setTimeout(() => window.heroCardSystem.forceRefresh(), 1000);
+                // Быстрое обновление без задержки
+                window.heroCardSystem.forceRefresh();
             }
         }
-    }).observe(document, { subtree: true, childList: true });
+    });
+    observer.observe(document, { subtree: true, childList: true });
 }
