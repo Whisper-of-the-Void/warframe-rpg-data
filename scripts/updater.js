@@ -17,8 +17,8 @@ class ForumParser {
     async parseMembersList() {
         try {
             console.log('🔍 Начинаем парсинг списка пользователей...');
+            console.log('📡 URL:', this.memberlistUrl);
             
-            // Используем node-fetch вместо браузерного fetch
             const response = await fetch(this.memberlistUrl);
             
             if (!response.ok) {
@@ -26,6 +26,7 @@ class ForumParser {
             }
             
             const html = await response.text();
+            console.log('✅ HTML получен, размер:', html.length, 'символов');
             return this.extractPlayersFromHTML(html);
             
         } catch (error) {
@@ -37,110 +38,90 @@ class ForumParser {
     extractPlayersFromHTML(html) {
         const players = {};
         
-        // Используем JSDOM вместо браузерного DOM
-        const dom = new JSDOM(html);
-        const doc = dom.window.document;
-        
-        console.log('📄 Загружено HTML:', html.length, 'символов');
+        try {
+            // Используем JSDOM вместо DOMParser
+            const dom = new JSDOM(html);
+            const doc = dom.window.document;
 
-        const tables = doc.querySelectorAll('table');
-        console.log('📊 Найдено таблиц:', tables.length);
+            const tables = doc.querySelectorAll('table');
+            console.log('📊 Найдено таблиц:', tables.length);
 
-        let membersTable = null;
-        
-        // Ищем таблицу с пользователями
-        tables.forEach((table, index) => {
-            const tableText = table.textContent;
-            if (tableText.includes('Имя') && 
-                tableText.includes('Сообщений') && 
-                tableText.includes('Зарегистрирован')) {
-                membersTable = table;
-                console.log(`✅ Найдена таблица пользователей #${index}`);
-            }
-        });
-
-        if (!membersTable) {
-            console.error('❌ Таблица пользователей не найдена');
-            // Попробуем найти по другому шаблону
-            return this.alternativeParse(doc);
-        }
-
-        const rows = membersTable.querySelectorAll('tr');
-        console.log('📋 Найдено строк:', rows.length);
-
-        for (let i = 1; i < rows.length; i++) {
-            const row = rows[i];
-            const cells = row.querySelectorAll('td');
+            let membersTable = null;
             
-            if (cells.length >= 4) {
-                try {
-                    const username = cells[0].textContent.trim();
-                    
-                    if (!username || username === '' || username === 'Имя') continue;
-                    
-                    players[username] = this.createPlayerData(username, cells);
-                    console.log(`👤 Обработан пользователь: ${username}`);
-                    
-                } catch (cellError) {
-                    console.error('❌ Ошибка обработки строки:', cellError);
+            // Ищем таблицу с пользователями - адаптируем под вашу структуру
+            tables.forEach((table, index) => {
+                const tableText = table.textContent;
+                console.log(`Таблица ${index}:`, tableText.substring(0, 100));
+                
+                // Пробуем разные варианты заголовков
+                if (tableText.includes('Имя') || 
+                    tableText.includes('Пользователь') ||
+                    tableText.includes('Участник')) {
+                    membersTable = table;
+                    console.log(`✅ Возможно, найдена таблица пользователей #${index}`);
+                }
+            });
+
+            if (!membersTable && tables.length > 0) {
+                // Берем первую таблицу как запасной вариант
+                membersTable = tables[0];
+                console.log('🔄 Используем первую таблицу как запасной вариант');
+            }
+
+            if (!membersTable) {
+                console.error('❌ Таблица пользователей не найдена');
+                return players;
+            }
+
+            // Парсим строки таблицы
+            const rows = membersTable.querySelectorAll('tr');
+            console.log('📋 Найдено строк:', rows.length);
+
+            for (let i = 0; i < rows.length; i++) {
+                const row = rows[i];
+                const cells = row.querySelectorAll('td, th');
+                
+                if (cells.length >= 2) {
+                    try {
+                        const username = cells[0].textContent.trim();
+                        
+                        // Пропускаем пустые строки или заголовки
+                        if (!username || username === '' || 
+                            username === 'Имя' || username === 'Пользователь' ||
+                            username.includes('@') || username.includes('mail')) continue;
+                        
+                        console.log(`👤 Найден пользователь: ${username}`);
+                        players[username] = this.createPlayerData(username, cells);
+                        
+                    } catch (cellError) {
+                        console.error('❌ Ошибка обработки строки:', cellError);
+                    }
                 }
             }
+
+            console.log(`✅ Успешно обработано пользователей: ${Object.keys(players).length}`);
+            return players;
+            
+        } catch (error) {
+            console.error('❌ Ошибка в extractPlayersFromHTML:', error);
+            return players;
         }
-
-        console.log(`✅ Успешно обработано пользователей: ${Object.keys(players).length}`);
-        return players;
-    }
-
-    // Альтернативный метод парсинга, если первый не сработал
-    alternativeParse(doc) {
-        const players = {};
-        console.log('🔄 Пробуем альтернативный парсинг...');
-        
-        // Ищем все ссылки с именами пользователей
-        const userLinks = doc.querySelectorAll('a[href*="member.php"]');
-        console.log('🔗 Найдено пользовательских ссылок:', userLinks.length);
-        
-        userLinks.forEach(link => {
-            const username = link.textContent.trim();
-            if (username && username !== '' && !username.includes('@')) {
-                players[username] = {
-                    id: this.generateId(username),
-                    name: username,
-                    forum_data: {
-                        status: '',
-                        respect: '+0 -0',
-                        posts: 0,
-                        registered: 'Неизвестно',
-                        last_online: 'Неизвестно',
-                        days_since_registration: 0
-                    },
-                    bonuses: { credits: 0, infection: 0, whisper: 0 },
-                    game_stats: {
-                        credits: 1000,
-                        infection: { base: 0, bonus: 0, total: 0 },
-                        whisper: { base: 0, bonus: 0, total: 0 }
-                    },
-                    last_updated: new Date().toISOString()
-                };
-            }
-        });
-        
-        return players;
     }
 
     createPlayerData(username, cells) {
-        const bonuses = this.parseBonusesFromStatus(cells[1]?.textContent?.trim() || '');
+        // Для начала используем базовые данные
+        const bonuses = this.parseBonusesFromStatus('');
         
         return {
             id: this.generateId(username),
             name: username,
             forum_data: {
                 status: cells[1]?.textContent?.trim() || '',
-                respect: cells[2]?.textContent?.trim() || '+0 -0',
-                posts: parseInt(cells[3]?.textContent) || 0,
-                registered: cells[4]?.textContent?.trim() || 'Неизвестно',
-                last_online: cells[5]?.textContent?.trim() || 'Неизвестно',
-                days_since_registration: this.calculateDaysSinceRegistration(cells[4]?.textContent?.trim())
+                respect: '+0 -0',
+                posts: 0,
+                registered: 'Неизвестно',
+                last_online: 'Неизвестно',
+                days_since_registration: 0
             },
             bonuses: bonuses,
             game_stats: {
@@ -183,51 +164,57 @@ class ForumParser {
             .replace(/_+/g, '_')
             .replace(/^_|_$/g, '');
     }
-
-    calculateDaysSinceRegistration(registeredDate) {
-        if (!registeredDate || registeredDate === 'Неизвестно') return 0;
-        
-        try {
-            // Пытаемся разобрать дату в формате "2025-10-21"
-            const regDate = new Date(registeredDate);
-            const today = new Date();
-            return Math.floor((today - regDate) / (1000 * 60 * 60 * 24));
-        } catch (error) {
-            console.error('❌ Ошибка расчета даты для:', registeredDate);
-            return 0;
-        }
-    }
 }
 
 // Основная функция
-async function updatePlayerData() {
+async function main() {
+    console.log('🚀 Запуск обновления данных...');
+    
     const parser = new ForumParser();
     const players = await parser.parseMembersList();
     
-    if (players) {
+    if (players && Object.keys(players).length > 0) {
         const dataPath = path.join(__dirname, '../data/players.json');
-        let existingData = { players: {} };
         
-        // Читаем существующие данные, если файл есть
-        if (fs.existsSync(dataPath)) {
-            existingData = JSON.parse(fs.readFileSync(dataPath, 'utf8'));
-        }
-        
-        // Объединяем данные
-        const updatedPlayers = { ...existingData.players, ...players };
-        
-        const updatedData = {
-            players: updatedPlayers,
+        // Сохраняем данные
+        const dataToSave = {
+            players: players,
             last_updated: new Date().toISOString(),
-            version: existingData.version || "1.0.0"
+            version: "1.0.0",
+            stats: {
+                total_players: Object.keys(players).length,
+                parsed_at: new Date().toISOString()
+            }
         };
         
-        fs.writeFileSync(dataPath, JSON.stringify(updatedData, null, 2));
-        console.log('✅ Данные игроков обновлены!');
+        fs.writeFileSync(dataPath, JSON.stringify(dataToSave, null, 2));
+        console.log('✅ Данные успешно сохранены в players.json');
+        
+        // Выводим список обработанных пользователей
+        console.log('📋 Обработанные пользователи:');
+        Object.keys(players).forEach(username => {
+            console.log(`   - ${username}`);
+        });
     } else {
         console.log('❌ Не удалось получить данные игроков');
+        // Создаем пустой файл для тестирования
+        const dataPath = path.join(__dirname, '../data/players.json');
+        const emptyData = {
+            players: {},
+            last_updated: new Date().toISOString(),
+            version: "1.0.0",
+            stats: {
+                total_players: 0,
+                parsed_at: new Date().toISOString()
+            }
+        };
+        fs.writeFileSync(dataPath, JSON.stringify(emptyData, null, 2));
+        console.log('📁 Создан пустой файл players.json для тестирования');
     }
 }
 
-// Запуск
-updatePlayerData();
+// Запускаем скрипт
+main().catch(error => {
+    console.error('💥 Критическая ошибка:', error);
+    process.exit(1);
+});
