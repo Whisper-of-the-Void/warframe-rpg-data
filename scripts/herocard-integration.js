@@ -1,7 +1,7 @@
 // scripts/herocard-integration.js
 class HeroCardIntegration {
     constructor() {
-        this.dataUrl = 'https://YOUR_USERNAME.github.io/warframe-rpg-data/data/players.json';
+        this.dataUrl = 'https://whisper-of-the-void.github.io/warframe-rpg-data/data/players.json';
         this.playersData = null;
     }
 
