@@ -22,6 +22,7 @@ jobs:
       uses: actions/setup-node@v4
       with:
         node-version: '18'
+        cache: 'npm'
         
     - name: Install dependencies
       run: |
@@ -30,14 +31,13 @@ jobs:
     - name: Run data parser
       run: node scripts/updater.js
       
+    - name: Analyze User Posts (Optional)
+      run: node scripts/updater.js --with-posts
+      
     - name: Commit and push changes
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
         git add data/players.json
-        git commit -m "Auto-update player data" || echo "Нет изменений для коммита"
+        git diff --staged --quiet || git commit -m "Auto-update player data [$(date +'%Y-%m-%d %H:%M')]"
         git push origin main
-
-    - name: Analyze User Posts
-      run: |
-      node scripts/analyze-posts.js
