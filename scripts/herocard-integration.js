@@ -4,7 +4,7 @@ class HeroCardIntegration {
         this.dataUrl = 'https://whisper-of-the-void.github.io/warframe-rpg-data/data/players.json';
         this.playersData = null;
         this.autoRefreshInterval = null;
-        this.cacheTime = 2 * 60 * 1000;
+        this.cacheTime = 2 * 60 * 1000; // 2 минуты
         this.dataPreloaded = false;
         this.dataLoadPromise = null;
         
@@ -126,6 +126,9 @@ class HeroCardIntegration {
         const lastSeen = playerData.forum_data?.last_online || 'Неизвестно';
         const lastUpdated = playerData.last_updated || new Date().toISOString();
 
+        // Получаем статистику активности, если есть
+        const activityData = playerData.forum_data?.post_stats;
+
         const infectionColor = this.getInfectionColor(infection);
         const whisperColor = this.getWhisperColor(whisper);
         const infectionIcon = this.getInfectionIcon(infection);
@@ -134,7 +137,7 @@ class HeroCardIntegration {
         const html = [
             '<div class="warframe-herocard">',
             '<div class="herocard-header">',
-            '<h3 class="herocard-title">🎮 ', playerName, '</h3>',
+            '<h3 class="herocard-title">🎮 ', this.escapeHtml(playerName), '</h3>',
             '<div class="herocard-badges">',
             '<span class="badge reputation">⭐ ', reputation, '</span>',
             '<span class="badge posts">📊 ', posts, '</span>',
@@ -146,14 +149,62 @@ class HeroCardIntegration {
             '</div>',
             '<div class="herocard-meta">',
             '<div class="meta-item"><span class="meta-label">📅 На форуме:</span><span class="meta-value">', onForum, ' дн.</span></div>',
-            '<div class="meta-item"><span class="meta-label">🕐 Был:</span><span class="meta-value">', lastSeen, '</span></div>',
+            '<div class="meta-item"><span class="meta-label">🕐 Был:</span><span class="meta-value">', this.escapeHtml(lastSeen), '</span></div>',
             '</div>',
+            this.renderActivityStats(activityData),
             '<div class="herocard-bonuses">', this.renderBonuses(bonuses), '</div>',
             '<div class="herocard-footer"><small>Обновлено: ', new Date(lastUpdated).toLocaleTimeString(), '</small></div>',
             '</div>'
         ].join('');
 
         container.innerHTML = html;
+    }
+
+    renderActivityStats(activityData) {
+        if (!activityData) return '';
+        
+        const totalPosts = activityData.total_posts || 0;
+        const gamePosts = activityData.game_posts || 0;
+        const floodPosts = activityData.flood_posts || 0;
+        const technicalPosts = activityData.technical_posts || 0;
+        const activityScore = activityData.post_activity_score || 0;
+        
+        const gameRatio = totalPosts > 0 ? (gamePosts / totalPosts * 100) : 0;
+        const floodRatio = totalPosts > 0 ? (floodPosts / totalPosts * 100) : 0;
+        const techRatio = totalPosts > 0 ? (technicalPosts / totalPosts * 100) : 0;
+        
+        const trendIcon = {
+            'increasing': '📈',
+            'decreasing': '📉', 
+            'stable': '➡️'
+        }[activityData.activity_trend] || '➡️';
+        
+        return [
+            '<div class="herocard-activity">',
+            '<div class="activity-header">',
+            '<span class="activity-label">📊 Активность</span>',
+            '<span class="activity-trend">', trendIcon, '</span>',
+            '</div>',
+            '<div class="activity-stats">',
+            '<div class="activity-row">',
+            '<span class="activity-type">🎮 Игровые:</span>',
+            '<span class="activity-value">', gamePosts, ' (', Math.round(gameRatio), '%)</span>',
+            '</div>',
+            '<div class="activity-row">',
+            '<span class="activity-type">💬 Флудовые:</span>',
+            '<span class="activity-value">', floodPosts, ' (', Math.round(floodRatio), '%)</span>',
+            '</div>',
+            '<div class="activity-row">',
+            '<span class="activity-type">🔧 Технические:</span>',
+            '<span class="activity-value">', technicalPosts, ' (', Math.round(techRatio), '%)</span>',
+            '</div>',
+            '<div class="activity-row">',
+            '<span class="activity-type">⭐ Рейтинг:</span>',
+            '<span class="activity-value">', activityScore, '</span>',
+            '</div>',
+            '</div>',
+            '</div>'
+        ].join('');
     }
 
     renderBonuses(bonuses) {
@@ -179,7 +230,7 @@ class HeroCardIntegration {
         container.innerHTML = [
             '<div class="warframe-herocard">',
             '<div class="herocard-header">',
-            '<h3 class="herocard-title">🎮 ', playerName, '</h3>',
+            '<h3 class="herocard-title">🎮 ', this.escapeHtml(playerName), '</h3>',
             '<div class="herocard-badges">',
             '<span class="badge reputation">❌ Не в игре</span>',
             '</div></div>',
@@ -189,6 +240,12 @@ class HeroCardIntegration {
             '<div class="herocard-footer"><small>Проверьте наличие игрока в системе RPG</small></div>',
             '</div>'
         ].join('');
+    }
+
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
     }
 
     getInfectionColor(level) {
@@ -236,47 +293,7 @@ class HeroCardIntegration {
                     this.processHeroCards();
                 });
         }, this.cacheTime);
-// Добавляем в HeroCardIntegration класс:
-renderActivityStats(activityData) {
-    if (!activityData) return '';
-    
-    const gameRatio = activityData.game_posts / Math.max(activityData.total_posts, 1) * 100;
-    const floodRatio = activityData.flood_posts / Math.max(activityData.total_posts, 1) * 100;
-    const techRatio = activityData.technical_posts / Math.max(activityData.total_posts, 1) * 100;
-    
-    const trendIcon = {
-        'increasing': '📈',
-        'decreasing': '📉', 
-        'stable': '➡️'
-    }[activityData.activity_trend] || '➡️';
-    
-    return [
-        '<div class="herocard-activity">',
-        '<div class="activity-header">',
-        '<span class="activity-label">📊 Активность</span>',
-        '<span class="activity-trend">', trendIcon, '</span>',
-        '</div>',
-        '<div class="activity-stats">',
-        '<div class="activity-row">',
-        '<span class="activity-type">🎮 Игровые:</span>',
-        '<span class="activity-value">', activityData.game_posts, ' (', Math.round(gameRatio), '%)</span>',
-        '</div>',
-        '<div class="activity-row">',
-        '<span class="activity-type">💬 Флудовые:</span>',
-        '<span class="activity-value">', activityData.flood_posts, ' (', Math.round(floodRatio), '%)</span>',
-        '</div>',
-        '<div class="activity-row">',
-        '<span class="activity-type">🔧 Технические:</span>',
-        '<span class="activity-value">', activityData.technical_posts, ' (', Math.round(techRatio), '%)</span>',
-        '</div>',
-        '<div class="activity-row">',
-        '<span class="activity-type">⭐ Рейтинг:</span>',
-        '<span class="activity-value">', activityData.post_activity_score, '</span>',
-        '</div>',
-        '</div>',
-        '</div>'
-    ].join('');
-}
+
         console.log('✅ Быстрое автообновление запущено (каждые 2 минуты)');
     }
 
@@ -302,26 +319,155 @@ renderActivityStats(activityData) {
 
 // Оптимизированные стили
 const heroCardStyles = `
-.warframe-herocard{background:linear-gradient(135deg,#1a1a1a 0%,#2d2d2d 100%);color:#fff;padding:20px;border-radius:12px;border-left:6px solid #ff6b00;box-shadow:0 4px 15px rgba(0,0,0,0.3);font-family:Arial,sans-serif;margin:10px 0;position:relative;animation:cardAppear 0.3s ease-out}
-.herocard-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;border-bottom:1px solid #444;padding-bottom:10px}
-.herocard-title{margin:0;color:#ff6b00;font-size:1.3em}
-.herocard-badges{display:flex;gap:8px}
-.badge{padding:4px 8px;border-radius:12px;font-size:0.8em;font-weight:700}
-.badge.reputation{background:#ffd700;color:#000}
-.badge.posts{background:#2196F3;color:#fff}
-.herocard-stats{margin-bottom:15px}
-.stat-row{display:flex;justify-content:space-between;align-items:center;margin:8px 0;padding:5px 0}
-.stat-label{font-weight:700;color:#ccc}
-.stat-value{font-weight:700;font-size:1.1em}
-.stat-value.credits{color:gold}
-.herocard-meta{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:15px;padding-top:10px;border-top:1px solid #444}
-.meta-item{display:flex;flex-direction:column}
-.meta-label{font-size:0.8em;color:#888}
-.meta-value{font-size:0.9em;font-weight:700}
-.herocard-bonuses{background:rgba(255,107,0,0.1);padding:10px;border-radius:6px;border-left:3px solid #ff6b00;margin-bottom:10px}
-.bonus-item{margin:2px 0;font-size:0.8em;color:#ccc}
-.herocard-footer{text-align:center;padding-top:10px;border-top:1px solid #444;font-size:0.7em;color:#666}
-@keyframes cardAppear{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+.warframe-herocard {
+    background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+    color: #fff;
+    padding: 20px;
+    border-radius: 12px;
+    border-left: 6px solid #ff6b00;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    font-family: Arial, sans-serif;
+    margin: 10px 0;
+    position: relative;
+    animation: cardAppear 0.3s ease-out;
+}
+.herocard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    border-bottom: 1px solid #444;
+    padding-bottom: 10px;
+}
+.herocard-title {
+    margin: 0;
+    color: #ff6b00;
+    font-size: 1.3em;
+}
+.herocard-badges {
+    display: flex;
+    gap: 8px;
+}
+.badge {
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.8em;
+    font-weight: 700;
+}
+.badge.reputation {
+    background: #ffd700;
+    color: #000;
+}
+.badge.posts {
+    background: #2196F3;
+    color: #fff;
+}
+.herocard-stats {
+    margin-bottom: 15px;
+}
+.stat-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 8px 0;
+    padding: 5px 0;
+}
+.stat-label {
+    font-weight: 700;
+    color: #ccc;
+}
+.stat-value {
+    font-weight: 700;
+    font-size: 1.1em;
+}
+.stat-value.credits {
+    color: gold;
+}
+.herocard-meta {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 15px;
+    padding-top: 10px;
+    border-top: 1px solid #444;
+}
+.meta-item {
+    display: flex;
+    flex-direction: column;
+}
+.meta-label {
+    font-size: 0.8em;
+    color: #888;
+}
+.meta-value {
+    font-size: 0.9em;
+    font-weight: 700;
+}
+.herocard-activity {
+    background: rgba(0, 150, 255, 0.1);
+    padding: 12px;
+    border-radius: 8px;
+    border-left: 3px solid #0096FF;
+    margin-bottom: 10px;
+}
+.activity-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    font-weight: 700;
+    color: #0096FF;
+}
+.activity-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+}
+.activity-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.75em;
+    padding: 2px 0;
+}
+.activity-type {
+    color: #ccc;
+}
+.activity-value {
+    font-weight: 700;
+    color: #fff;
+}
+.activity-trend {
+    font-size: 0.9em;
+}
+.herocard-bonuses {
+    background: rgba(255,107,0,0.1);
+    padding: 10px;
+    border-radius: 6px;
+    border-left: 3px solid #ff6b00;
+    margin-bottom: 10px;
+}
+.bonus-item {
+    margin: 2px 0;
+    font-size: 0.8em;
+    color: #ccc;
+}
+.herocard-footer {
+    text-align: center;
+    padding-top: 10px;
+    border-top: 1px solid #444;
+    font-size: 0.7em;
+    color: #666;
+}
+@keyframes cardAppear {
+    from {
+        opacity: 0;
+        transform: translateY(5px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
 `;
 
 // Ультра-быстрая инициализация
