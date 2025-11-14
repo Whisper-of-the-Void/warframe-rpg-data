@@ -103,6 +103,10 @@ class ForumParser {
     }
 
     createPlayerData(username, cells) {
+        // Извлекаем user_id из ссылки на профиль
+        const profileLink = cells[0].querySelector('a[href*="profile.php?id="]');
+        const userId = profileLink ? this.extractUserId(profileLink.href) : null;
+
         // Парсим бонусы из статуса (второй столбец)
         const statusText = cells[1].textContent.trim();
         const bonuses = this.parseBonusesFromStatus(statusText);
@@ -124,6 +128,7 @@ class ForumParser {
             id: this.generateId(username),
             name: username,
             forum_data: {
+                user_id: userId, // ← ДОБАВЛЕН user_id
                 status: statusText,
                 respect: respectText,
                 positive_reputation: reputation.positive,
@@ -155,6 +160,11 @@ class ForumParser {
             },
             last_updated: new Date().toISOString()
         };
+    }
+
+    extractUserId(url) {
+        const match = url.match(/profile\.php\?id=(\d+)/);
+        return match ? parseInt(match[1]) : null;
     }
 
     parseBonusesFromStatus(status) {
@@ -227,80 +237,67 @@ class ForumParser {
     }
 }
 
-// Основная функция
-async function main() {
-    console.log('🚀 Запуск обновления данных...');
-    
-    const parser = new ForumParser();
-    const players = await parser.parseMembersList();
-    
-    if (players && Object.keys(players).length > 0) {
-        const dataPath = path.join(__dirname, '../data/players.json');
-        
-        // Сохраняем данные
-        const dataToSave = {
-            players: players,
-            last_updated: new Date().toISOString(),
-            version: "1.0.0",
-            stats: {
-                total_players: Object.keys(players).length,
-                parsed_at: new Date().toISOString()
-            }
+// Класс для анализа постов (должен быть в отдельном файле, но для простоты оставим здесь)
+class UserPostsParser {
+    constructor() {
+        this.baseUrl = 'https://warframe.f-rpg.me';
+    }
+
+    async parseAllUserPosts(userId, username) {
+        try {
+            console.log(`🔍 Начинаем анализ постов пользователя: ${username} (ID: ${userId})`);
+            
+            // Временная заглушка - возвращаем тестовые данные
+            // В реальной реализации здесь будет парсинг всех страниц
+            return this.getMockPostStats(username);
+            
+        } catch (error) {
+            console.error(`❌ Ошибка анализа постов для ${username}:`, error);
+            return this.getDefaultPostStats();
+        }
+    }
+
+    getMockPostStats(username) {
+        // Временные тестовые данные
+        const mockData = {
+            'Void': { total_posts: 43, game_posts: 28, flood_posts: 10, technical_posts: 5, post_activity_score: 156.8 },
+            'Negan': { total_posts: 3, game_posts: 1, flood_posts: 2, technical_posts: 0, post_activity_score: 24.5 },
+            'PR-Cephalon': { total_posts: 1, game_posts: 0, flood_posts: 0, technical_posts: 1, post_activity_score: 5.2 }
         };
+
+        const stats = mockData[username] || this.getDefaultPostStats();
         
-        fs.writeFileSync(dataPath, JSON.stringify(dataToSave, null, 2));
-        console.log('✅ Данные успешно сохранены в players.json');
-        
-        // Выводим итоговый список
-        console.log('📋 Итоговый список пользователей:');
-        Object.keys(players).forEach(username => {
-            const player = players[username];
-            console.log(`   - ${username}: 💰${player.game_stats.credits} ⚡${player.game_stats.infection.total}% 👁${player.game_stats.whisper.total}%`);
-        });
-    } else {
-        console.log('❌ Не удалось получить данные игроков');
-        // Создаем тестовые данные для проверки
-        const dataPath = path.join(__dirname, '../data/players.json');
-        const testData = {
-            players: {
-                "TestUser": {
-                    id: "testuser",
-                    name: "TestUser",
-                    forum_data: {
-                        status: "💰+100 ⚡+50% 👁+25%",
-                        respect: "+5 -2",
-                        positive_reputation: 5,
-                        negative_reputation: 2,
-                        net_reputation: 3,
-                        posts: 10,
-                        registered: "2025-01-01",
-                        last_online: "Сегодня",
-                        days_since_registration: 19
-                    },
-                    bonuses: { credits: 100, infection: 50, whisper: 25 },
-                    game_stats: {
-                        credits: 1100,
-                        infection: { base: 0, bonus: 50, total: 50 },
-                        whisper: { base: 0, bonus: 25, total: 25 }
-                    },
-                    last_updated: new Date().toISOString()
-                }
+        return {
+            ...stats,
+            post_distribution: {
+                roleplay: stats.game_posts,
+                offtopic: Math.floor(stats.flood_posts / 2),
+                technical: stats.technical_posts
             },
-            last_updated: new Date().toISOString(),
-            version: "1.0.0"
+            sections_activity: {
+                1: { posts_count: stats.game_posts, section_name: 'Точка Сингулярности', section_type: 'roleplay' }
+            },
+            last_activity: new Date().toISOString(),
+            activity_trend: 'stable',
+            analyzed_at: new Date().toISOString()
         };
-        fs.writeFileSync(dataPath, JSON.stringify(testData, null, 2));
-        console.log('📁 Создан тестовый файл players.json');
+    }
+
+    getDefaultPostStats() {
+        return {
+            total_posts: 0,
+            game_posts: 0,
+            flood_posts: 0,
+            technical_posts: 0,
+            post_activity_score: 0,
+            post_distribution: {},
+            sections_activity: {},
+            last_activity: new Date().toISOString(),
+            activity_trend: 'stable',
+            analyzed_at: new Date().toISOString()
+        };
     }
 }
-
-// Запускаем скрипт
-main().catch(error => {
-    console.error('💥 Критическая ошибка:', error);
-    process.exit(1);
-});
-// Добавляем в scripts/updater.js
-const UserPostsParser = require('./user-posts-parser');
 
 class EnhancedUpdater {
     constructor() {
@@ -317,7 +314,7 @@ class EnhancedUpdater {
             try {
                 console.log(`\n🔍 Анализируем посты игрока: ${username}`);
                 
-                // Получаем user_id из данных игрока (должен быть добавлен при парсинге)
+                // Получаем user_id из данных игрока
                 const userId = playerData.forum_data?.user_id;
                 
                 if (userId) {
@@ -338,7 +335,7 @@ class EnhancedUpdater {
                 
                 // Задержка между обработкой игроков
                 if (processed < Object.keys(players).length) {
-                    await this.delay(1000); // 1 секунда между игроками
+                    await this.delay(500); // 0.5 секунды между игроками
                 }
                 
             } catch (error) {
@@ -388,16 +385,102 @@ class EnhancedUpdater {
     }
 }
 
-// Добавляем вызов в основной процесс обновления
-async function mainUpdateProcess() {
-    const updater = new EnhancedUpdater();
+// Основная функция
+async function main() {
+    console.log('🚀 Запуск обновления данных...');
     
-    // Получаем текущих игроков
-    const currentPlayers = await getCurrentPlayers(); // Ваш существующий метод
+    const parser = new ForumParser();
+    const players = await parser.parseMembersList();
     
-    // Обновляем статистику постов
-    const updatedPlayers = await updater.updateAllPlayersWithPosts(currentPlayers);
-    
-    // Сохраняем обновленные данные
-    await savePlayersData(updatedPlayers); // Ваш существующий метод
+    if (players && Object.keys(players).length > 0) {
+        const dataPath = path.join(__dirname, '../data/players.json');
+        
+        // Обновляем статистику постов (опционально, можно включать/выключать)
+        const updatePosts = process.argv.includes('--with-posts');
+        
+        let finalPlayers = players;
+        
+        if (updatePosts) {
+            console.log('\n🔄 Обновление статистики постов...');
+            const postsUpdater = new EnhancedUpdater();
+            finalPlayers = await postsUpdater.updateAllPlayersWithPosts(players);
+        } else {
+            console.log('\n⏭️  Пропуск обновления статистики постов (используйте --with-posts для включения)');
+        }
+        
+        // Сохраняем данные
+        const dataToSave = {
+            players: finalPlayers,
+            last_updated: new Date().toISOString(),
+            version: "1.0.0",
+            stats: {
+                total_players: Object.keys(finalPlayers).length,
+                parsed_at: new Date().toISOString(),
+                posts_analyzed: updatePosts
+            }
+        };
+        
+        fs.writeFileSync(dataPath, JSON.stringify(dataToSave, null, 2));
+        console.log('✅ Данные успешно сохранены в players.json');
+        
+        // Выводим итоговый список
+        console.log('\n📋 Итоговый список пользователей:');
+        Object.keys(finalPlayers).forEach(username => {
+            const player = finalPlayers[username];
+            const postsInfo = updatePosts && player.forum_data.post_stats ? 
+                ` | 🎮${player.forum_data.post_stats.game_posts} 💬${player.forum_data.post_stats.flood_posts} 🔧${player.forum_data.post_stats.technical_posts}` : '';
+            console.log(`   - ${username}: 💰${player.game_stats.credits} ⚡${player.game_stats.infection.total}% 👁${player.game_stats.whisper.total}%${postsInfo}`);
+        });
+    } else {
+        console.log('❌ Не удалось получить данные игроков');
+        // Создаем тестовые данные для проверки
+        const dataPath = path.join(__dirname, '../data/players.json');
+        const testData = {
+            players: {
+                "TestUser": {
+                    id: "testuser",
+                    name: "TestUser",
+                    forum_data: {
+                        user_id: 999,
+                        status: "💰+100 ⚡+50% 👁+25%",
+                        respect: "+5",
+                        positive_reputation: 5,
+                        negative_reputation: 0,
+                        net_reputation: 5,
+                        posts: 10,
+                        registered: "2025-01-01",
+                        last_online: "Сегодня",
+                        days_since_registration: 19,
+                        post_stats: {
+                            total_posts: 10,
+                            game_posts: 5,
+                            flood_posts: 3,
+                            technical_posts: 2,
+                            post_activity_score: 45.5,
+                            post_distribution: { roleplay: 5, offtopic: 2, technical: 2 },
+                            last_activity: new Date().toISOString(),
+                            activity_trend: "stable"
+                        }
+                    },
+                    bonuses: { credits: 100, infection: 50, whisper: 25, activity: { credits: 25, infection: 2.5, whisper: 4 } },
+                    game_stats: {
+                        credits: 1125,
+                        infection: { base: 0, bonus: 52.5, total: 52.5 },
+                        whisper: { base: 0, bonus: 29, total: 29 }
+                    },
+                    last_updated: new Date().toISOString()
+                }
+            },
+            last_updated: new Date().toISOString(),
+            version: "1.0.0"
+        };
+        fs.writeFileSync(dataPath, JSON.stringify(testData, null, 2));
+        console.log('📁 Создан тестовый файл players.json');
+    }
 }
+
+// Запускаем скрипт
+main().catch(error => {
+    console.error('💥 Критическая ошибка:', error);
+    process.exit(1);
+});
