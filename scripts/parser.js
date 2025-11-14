@@ -32,7 +32,6 @@ class ForumParser {
         console.log('📄 Загружено HTML:', html.length, 'символов');
 
         // Используем регулярные выражения для парсинга таблицы
-        // Ищем строки таблицы с данными пользователей
         const rowRegex = /<tr[^>]*>[\s\S]*?<\/tr>/gi;
         const rows = html.match(rowRegex) || [];
         
@@ -51,7 +50,7 @@ class ForumParser {
                     cells.push(match[1]);
                 }
                 
-                if (cells.length >= 6) { // Ожидаем как минимум 6 ячеек
+                if (cells.length >= 6) {
                     const username = this.extractUsername(cells[0]);
                     
                     if (username && this.isValidPlayerName(username)) {
@@ -85,8 +84,20 @@ class ForumParser {
         return text || null;
     }
 
+    extractUserId(cellHtml) {
+        // Извлекаем user_id из ссылки на профиль
+        const profileLinkMatch = cellHtml.match(/<a[^>]*href="[^"]*profile\.php\?id=(\d+)[^"]*"[^>]*>/i);
+        if (profileLinkMatch && profileLinkMatch[1]) {
+            return parseInt(profileLinkMatch[1]);
+        }
+        return null;
+    }
+
     createPlayerData(username, cells) {
         try {
+            // Извлекаем user_id из первой ячейки
+            const userId = this.extractUserId(cells[0]);
+
             // Парсим статус из второй ячейки (индекс 1)
             const statusText = this.cleanHtml(cells[1]);
             const bonuses = this.parseBonusesFromStatus(statusText);
@@ -111,6 +122,7 @@ class ForumParser {
                 id: this.generateId(username),
                 name: username,
                 forum_data: {
+                    user_id: userId, // ← ДОБАВЛЕН user_id
                     status: statusText,
                     positive_reputation: positiveReputation,
                     posts: posts,
