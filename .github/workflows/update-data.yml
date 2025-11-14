@@ -37,3 +37,7 @@ jobs:
         git add data/players.json
         git commit -m "Auto-update player data" || echo "Нет изменений для коммита"
         git push origin main
+
+    - name: Analyze User Posts
+      run: |
+      node scripts/analyze-posts.js
