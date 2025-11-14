@@ -1,40 +1,118 @@
 {
   "players": {
-    "TestUser": {
-      "id": "testuser",
-      "name": "TestUser",
+    "Void": {
+      "id": "void",
+      "name": "Void",
       "forum_data": {
-        "status": "💰+100 ⚡+50% 👁+25%",
-        "respect": "+5 -2",
-        "positive_reputation": 5,
-        "negative_reputation": 2,
-        "net_reputation": 3,
-        "posts": 10,
-        "registered": "2025-01-01",
+        "status": "💰+200 ⚡+13% 👁+312%",
+        "respect": "+0",
+        "posts": 45,
+        "registered": "2025-10-21",
         "last_online": "Сегодня",
-        "days_since_registration": 19
+        "days_since_registration": 24
       },
       "bonuses": {
-        "credits": 100,
-        "infection": 50,
-        "whisper": 25
+        "credits": 200,
+        "infection": 13,
+        "whisper": 312
       },
       "game_stats": {
-        "credits": 1100,
+        "credits": 1200,
         "infection": {
           "base": 0,
-          "bonus": 50,
-          "total": 50
+          "bonus": 13,
+          "total": 13
         },
         "whisper": {
           "base": 0,
-          "bonus": 25,
-          "total": 25
+          "bonus": 312,
+          "total": 100
         }
       },
-      "last_updated": "2025-11-14T12:32:47.363Z"
+      "activity": {
+        "posts_per_day": 0,
+        "activity_level": "new",
+        "activity_score": 0
+      },
+      "last_updated": "2025-11-14T12:45:33.546Z"
+    },
+    "Negan": {
+      "id": "negan",
+      "name": "Negan",
+      "forum_data": {
+        "status": "💰+200 ⚡+23% 👁-12%",
+        "respect": "+0",
+        "posts": 3,
+        "registered": "2025-11-12",
+        "last_online": "Вчера",
+        "days_since_registration": 2
+      },
+      "bonuses": {
+        "credits": 200,
+        "infection": 23,
+        "whisper": -12
+      },
+      "game_stats": {
+        "credits": 1200,
+        "infection": {
+          "base": 0,
+          "bonus": 23,
+          "total": 23
+        },
+        "whisper": {
+          "base": 0,
+          "bonus": -12,
+          "total": 0
+        }
+      },
+      "activity": {
+        "posts_per_day": 0,
+        "activity_level": "new",
+        "activity_score": 0
+      },
+      "last_updated": "2025-11-14T12:45:33.547Z"
+    },
+    "PR-Cephalon": {
+      "id": "pr_cephalon",
+      "name": "PR-Cephalon",
+      "forum_data": {
+        "status": "💰+20 ⚡+53% 👁+32%",
+        "respect": "+0",
+        "posts": 1,
+        "registered": "2025-10-21",
+        "last_online": "2025-10-22",
+        "days_since_registration": 24
+      },
+      "bonuses": {
+        "credits": 20,
+        "infection": 53,
+        "whisper": 32
+      },
+      "game_stats": {
+        "credits": 1020,
+        "infection": {
+          "base": 0,
+          "bonus": 53,
+          "total": 53
+        },
+        "whisper": {
+          "base": 0,
+          "bonus": 32,
+          "total": 32
+        }
+      },
+      "activity": {
+        "posts_per_day": 0,
+        "activity_level": "new",
+        "activity_score": 0
+      },
+      "last_updated": "2025-11-14T12:45:33.548Z"
     }
   },
-  "last_updated": "2025-11-14T12:32:47.363Z",
-  "version": "1.0.0"
+  "last_updated": "2025-11-14T12:45:33.549Z",
+  "version": "1.0.0",
+  "stats": {
+    "total_players": 3,
+    "parsed_at": "2025-11-14T12:45:33.549Z"
+  }
 }
