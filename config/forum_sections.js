@@ -1,8 +1,11 @@
 // config/forum_sections.js
+
+// ИГРОВЫЕ РАЗДЕЛЫ - посты здесь дают игровой прогресс
 const GAME_SECTIONS = {
-    roleplay: [7]
+    roleplay: [1, 7] // Точка Сингулярности и другие игровые разделы
 };
 
+// ФЛУДОВЫЕ РАЗДЕЛЫ - посты здесь не дают игрового прогресса
 const FLOOD_SECTIONS = {
     offtopic: [9],
     evenings: [10],
@@ -10,20 +13,26 @@ const FLOOD_SECTIONS = {
     contest: [12]
 };
 
-// Вспомогательные функции для работы с разделами
+// Функции для работы с разделами
 const SectionUtils = {
+    // Получение всех ID игровых разделов
+    getAllGameSectionIds() {
+        return Object.values(GAME_SECTIONS).flat();
+    },
+
+    // Получение всех ID флудовых разделов
+    getAllFloodSectionIds() {
+        return Object.values(FLOOD_SECTIONS).flat();
+    },
+
     // Проверка, является ли раздел игровым по ID
     isGameSection(sectionId) {
-        return Object.values(GAME_SECTIONS)
-            .flat()
-            .includes(parseInt(sectionId));
+        return this.getAllGameSectionIds().includes(parseInt(sectionId));
     },
 
     // Проверка, является ли раздел флудовым по ID
     isFloodSection(sectionId) {
-        return Object.values(FLOOD_SECTIONS)
-            .flat()
-            .includes(parseInt(sectionId));
+        return this.getAllFloodSectionIds().includes(parseInt(sectionId));
     },
 
     // Получение типа раздела по ID
@@ -45,21 +54,9 @@ const SectionUtils = {
 
     // Получение веса раздела для расчета очков активности
     getSectionWeight(sectionId) {
-        const id = parseInt(sectionId);
-        
-        if (this.isGameSection(id)) return 2.0;
-        if (this.isFloodSection(id)) return 0.5;
+        if (this.isGameSection(sectionId)) return 2.0;
+        if (this.isFloodSection(sectionId)) return 0.5;
         return 0.1; // Технические разделы
-    },
-
-    // Получение всех ID игровых разделов
-    getAllGameSectionIds() {
-        return Object.values(GAME_SECTIONS).flat();
-    },
-
-    // Получение всех ID флудовых разделов
-    getAllFloodSectionIds() {
-        return Object.values(FLOOD_SECTIONS).flat();
     }
 };
 
