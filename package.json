@@ -1,14 +1,13 @@
 {
   "name": "warframe-rpg-data",
   "version": "1.0.0",
-  "description": "Data system for Warframe RPG forum game",
-  "main": "scripts/updater.js",
-  "scripts": {
-    "update": "node scripts/updater.js"
-  },
+  "type": "module",
   "dependencies": {
     "node-fetch": "^2.6.7",
-    "jsdom": "^22.0.0",
-    "iconv-lite": "^0.6.3"
+    "cheerio": "^1.0.0-rc.12"
+  },
+  "scripts": {
+    "update": "node scripts/updater.js",
+    "update-with-posts": "node scripts/updater.js --with-posts"
   }
 }
