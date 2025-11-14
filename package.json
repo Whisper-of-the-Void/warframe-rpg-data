@@ -1,0 +1,13 @@
+{
+  "name": "warframe-rpg-data",
+  "version": "1.0.0",
+  "type": "module",
+  "dependencies": {
+    "axios": "^1.6.0",
+    "node-html-parser": "^6.1.12"
+  },
+  "scripts": {
+    "update": "node scripts/updater.js",
+    "update-with-posts": "node scripts/updater.js --with-posts"
+  }
+}
