@@ -9,5 +9,6 @@
   "scripts": {
     "update": "node scripts/updater.js",
     "update-with-posts": "node scripts/updater.js --with-posts"
-  }
+  },
+  "packageManager": "yarn@1.22.19"
 }
