@@ -1,34 +1,39 @@
-// scripts/analyze-posts.js
-const EnhancedUpdater = require('./updater');
-const fs = require('fs');
-const path = require('path');
+name: Analyze User Posts
 
-async function analyzePosts() {
-    try {
-        console.log('🚀 Запуск анализа постов пользователей...');
-        
-        const updater = new EnhancedUpdater();
-        
-        // Загружаем текущие данные
-        const playersPath = path.join(__dirname, '../data/players.json');
-        const playersData = JSON.parse(fs.readFileSync(playersPath, 'utf8'));
-        
-        // Обновляем статистику постов
-        const updatedPlayers = await updater.updateAllPlayersWithPosts(playersData.players);
-        
-        // Сохраняем обновленные данные
-        playersData.players = updatedPlayers;
-        playersData.last_updated = new Date().toISOString();
-        playersData.posts_analyzed_at = new Date().toISOString();
-        
-        fs.writeFileSync(playersPath, JSON.stringify(playersData, null, 2));
-        
-        console.log('✅ Анализ постов успешно завершен!');
-        
-    } catch (error) {
-        console.error('❌ Ошибка анализа постов:', error);
-        process.exit(1);
-    }
-}
+on:
+  schedule:
+    - cron: '0 2 * * *'  # Каждый день в 2:00
+  workflow_dispatch:      # Ручной запуск
 
-analyzePosts();
+permissions:
+  contents: write
+
+jobs:
+  analyze-posts:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm install --no-audit --no-fund
+      
+    - name: Run posts analysis
+      run: node scripts/updater.js --with-posts
+      
+    - name: Commit and push changes
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add data/players.json
+        git diff --staged --quiet || git commit -m "Auto-update posts analysis [$(date +'%Y-%m-%d %H:%M')]"
+        git push
