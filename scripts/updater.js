@@ -299,3 +299,105 @@ main().catch(error => {
     console.error('💥 Критическая ошибка:', error);
     process.exit(1);
 });
+// Добавляем в scripts/updater.js
+const UserPostsParser = require('./user-posts-parser');
+
+class EnhancedUpdater {
+    constructor() {
+        this.userPostsParser = new UserPostsParser();
+    }
+
+    async updateAllPlayersWithPosts(players) {
+        console.log('📊 Начинаем анализ постов всех игроков...');
+        
+        const updatedPlayers = { ...players };
+        let processed = 0;
+
+        for (const [username, playerData] of Object.entries(players)) {
+            try {
+                console.log(`\n🔍 Анализируем посты игрока: ${username}`);
+                
+                // Получаем user_id из данных игрока (должен быть добавлен при парсинге)
+                const userId = playerData.forum_data?.user_id;
+                
+                if (userId) {
+                    const postStats = await this.userPostsParser.parseAllUserPosts(userId, username);
+                    
+                    // Обновляем данные игрока
+                    updatedPlayers[username].forum_data.post_stats = postStats;
+                    
+                    // Генерируем бонусы на основе активности
+                    this.updatePlayerBonuses(updatedPlayers[username], postStats);
+                    
+                    console.log(`✅ Обновлена статистика для ${username}`);
+                } else {
+                    console.log(`⚠️ Нет user_id для ${username}, пропускаем`);
+                }
+                
+                processed++;
+                
+                // Задержка между обработкой игроков
+                if (processed < Object.keys(players).length) {
+                    await this.delay(1000); // 1 секунда между игроками
+                }
+                
+            } catch (error) {
+                console.error(`❌ Ошибка обновления ${username}:`, error);
+            }
+        }
+
+        console.log(`\n🎉 Анализ постов завершен! Обработано игроков: ${processed}`);
+        return updatedPlayers;
+    }
+
+    updatePlayerBonuses(player, postStats) {
+        // Базовые бонусы остаются
+        const baseBonuses = player.bonuses || { credits: 0, infection: 0, whisper: 0 };
+        
+        // Бонусы за активность
+        const activityBonuses = this.calculateActivityBonuses(postStats);
+        
+        // Объединяем бонусы
+        player.bonuses = {
+            credits: baseBonuses.credits + activityBonuses.credits,
+            infection: baseBonuses.infection + activityBonuses.infection,
+            whisper: baseBonuses.whisper + activityBonuses.whisper,
+            activity: activityBonuses
+        };
+
+        // Обновляем игровую статистику
+        if (player.game_stats) {
+            player.game_stats.credits = 1000 + player.bonuses.credits;
+            player.game_stats.infection.total = Math.max(0, Math.min(100, player.bonuses.infection));
+            player.game_stats.whisper.total = Math.max(-100, Math.min(100, player.bonuses.whisper));
+        }
+    }
+
+    calculateActivityBonuses(postStats) {
+        const activityScore = postStats.post_activity_score;
+        
+        return {
+            credits: Math.floor(activityScore * 5), // 5 кредитов за каждое очко активности
+            infection: Math.min(postStats.game_posts * 0.5, 20), // 0.5% за каждый игровой пост, макс 20%
+            whisper: Math.min(Object.keys(postStats.post_distribution).length * 2, 15) // 2% за каждый тип раздела
+        };
+    }
+
+    delay(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+}
+
+// Добавляем вызов в основной процесс обновления
+async function mainUpdateProcess() {
+    const updater = new EnhancedUpdater();
+    
+    // Получаем текущих игроков
+    const currentPlayers = await getCurrentPlayers(); // Ваш существующий метод
+    
+    // Обновляем статистику постов
+    const updatedPlayers = await updater.updateAllPlayersWithPosts(currentPlayers);
+    
+    // Сохраняем обновленные данные
+    await savePlayersData(updatedPlayers); // Ваш существующий метод
+}
