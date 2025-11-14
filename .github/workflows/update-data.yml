@@ -5,19 +5,17 @@ on:
     - cron: '0 */6 * * *'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   update-data:
     runs-on: ubuntu-latest
-    
-    # Добавьте эти разрешения
-    permissions:
-      contents: write
     
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
       with:
-        # Явно указываем токен
         token: ${{ secrets.GITHUB_TOKEN }}
         
     - name: Setup Node.js
@@ -27,7 +25,7 @@ jobs:
         cache: 'npm'
         
     - name: Install dependencies
-      run: npm install --no-audit --no-fund
+      run: npm install --no-audit --no-fund  # ← ИЗМЕНЕНО
       
     - name: Run data parser
       run: node scripts/updater.js
@@ -37,5 +35,5 @@ jobs:
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
         git add data/
-        git diff --staged --quiet || git commit -m "Update player data"
+        git diff --staged --quiet || git commit -m "🤖 Automated update: player data"
         git push
