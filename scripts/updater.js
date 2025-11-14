@@ -1,9 +1,8 @@
 // scripts/updater.js
-import axios from 'axios';
-import { parse } from 'node-html-parser';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import https from 'https';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -17,14 +16,7 @@ class ForumParser {
         try {
             console.log('🔍 Начинаем парсинг списка пользователей...');
             
-            const response = await axios.get(this.memberlistUrl, {
-                responseType: 'arraybuffer',
-                responseEncoding: 'binary'
-            });
-            
-            // Конвертируем из windows-1251 в utf-8
-            const html = Buffer.from(response.data).toString('win1251');
-            
+            const html = await this.fetchUrl(this.memberlistUrl);
             console.log('✅ HTML получен, размер:', html.length, 'символов');
             
             return this.extractPlayersFromHTML(html);
@@ -35,54 +27,128 @@ class ForumParser {
         }
     }
 
+    fetchUrl(url) {
+        return new Promise((resolve, reject) => {
+            https.get(url, (response) => {
+                let data = '';
+                
+                response.on('data', (chunk) => {
+                    data += chunk;
+                });
+                
+                response.on('end', () => {
+                    // Конвертируем из windows-1251 в utf-8
+                    const buffer = Buffer.from(data, 'binary');
+                    const decoded = this.win1251ToUtf8(buffer);
+                    resolve(decoded);
+                });
+                
+            }).on('error', (error) => {
+                reject(error);
+            });
+        });
+    }
+
+    win1251ToUtf8(buffer) {
+        // Простая конвертация windows-1251 -> utf-8
+        const win1251 = {
+            0x80: 0x0402, 0x81: 0x0403, 0x82: 0x201A, /* ... и так далее */
+            // Для простоты используем базовую конвертацию
+        };
+        
+        let result = '';
+        for (let i = 0; i < buffer.length; i++) {
+            const code = buffer[i];
+            if (code < 128) {
+                result += String.fromCharCode(code);
+            } else {
+                // Простая замена кириллицы
+                result += String.fromCharCode(code + 0x350);
+            }
+        }
+        return result;
+    }
+
     extractPlayersFromHTML(html) {
         const players = {};
-        const root = parse(html);
-
-        // Ищем таблицу пользователей
-        const userTable = root.querySelector('.usertable table');
         
-        if (!userTable) {
-            console.error('❌ Таблица пользователей не найдена');
+        try {
+            // Простой парсинг с помощью регулярных выражений
+            const rows = this.extractTableRows(html);
+            console.log('📋 Найдено строк пользователей:', rows.length);
+
+            rows.forEach((row, index) => {
+                try {
+                    const cells = this.extractCells(row);
+                    if (cells.length >= 6) {
+                        const username = this.extractUsername(cells[0]);
+                        if (username && this.isValidUsername(username)) {
+                            console.log(`👤 Обрабатываем пользователя: ${username}`);
+                            players[username] = this.createPlayerData(username, cells);
+                        }
+                    }
+                } catch (cellError) {
+                    console.error(`❌ Ошибка обработки строки ${index}:`, cellError);
+                }
+            });
+
+            console.log(`✅ Успешно обработано пользователей: ${Object.keys(players).length}`);
+            return players;
+            
+        } catch (error) {
+            console.error('❌ Ошибка в extractPlayersFromHTML:', error);
             return players;
         }
+    }
 
-        console.log('✅ Найдена таблица пользователей');
+    extractTableRows(html) {
+        // Ищем строки таблицы с пользователями
+        const rowRegex = /<tr[^>]*>[\s\S]*?<\/tr>/gi;
+        const matches = html.match(rowRegex) || [];
+        return matches.filter(row => row.includes('usersname'));
+    }
 
-        // Парсим строки таблицы
-        const rows = userTable.querySelectorAll('tbody tr');
-        console.log('📋 Найдено строк пользователей:', rows.length);
+    extractCells(row) {
+        // Извлекаем ячейки из строки таблицы
+        const cellRegex = /<td[^>]*>([\s\S]*?)<\/td>/gi;
+        const cells = [];
+        let match;
+        
+        while ((match = cellRegex.exec(row)) !== null) {
+            cells.push(match[1]);
+        }
+        
+        return cells;
+    }
 
-        rows.forEach((row, index) => {
-            try {
-                const cells = row.querySelectorAll('td');
-                
-                if (cells.length >= 6) {
-                    // Извлекаем имя пользователя
-                    const usernameLink = cells[0].querySelector('.usersname a');
-                    const username = usernameLink ? usernameLink.text.trim() : cells[0].text.trim();
-                    
-                    if (!username || username === '') return;
-                    
-                    console.log(`👤 Обрабатываем пользователя: ${username}`);
-                    players[username] = this.createPlayerData(username, cells);
-                }
-            } catch (cellError) {
-                console.error(`❌ Ошибка обработки строки ${index}:`, cellError);
-            }
-        });
+    extractUsername(cellHtml) {
+        // Извлекаем имя пользователя
+        const usernameMatch = cellHtml.match(/<a[^>]*class="usersname"[^>]*>([^<]+)<\/a>/i);
+        if (usernameMatch) {
+            return usernameMatch[1].trim();
+        }
+        
+        // Альтернативный метод
+        const text = cellHtml.replace(/<[^>]*>/g, '').trim();
+        return text || null;
+    }
 
-        console.log(`✅ Успешно обработано пользователей: ${Object.keys(players).length}`);
-        return players;
+    isValidUsername(username) {
+        return username && 
+               username.length > 1 && 
+               !username.includes('@') &&
+               username !== 'Автор' &&
+               username !== 'Имя';
     }
 
     createPlayerData(username, cells) {
         // Парсим бонусы из статуса
-        const statusText = cells[1].text.trim();
+        const statusText = this.cleanHtml(cells[1]);
         const bonuses = this.parseBonusesFromStatus(statusText);
         
         // Парсим количество сообщений
-        const posts = parseInt(cells[3].text) || 0;
+        const postsText = this.cleanHtml(cells[3]);
+        const posts = parseInt(postsText.replace(/\D/g, '')) || 0;
 
         return {
             id: this.generateId(username),
@@ -111,6 +177,12 @@ class ForumParser {
             infection: infectionMatch ? parseInt(infectionMatch[1]) : 0,
             whisper: whisperMatch ? parseInt(whisperMatch[1]) : 0
         };
+    }
+
+    cleanHtml(html) {
+        return html.replace(/<[^>]*>/g, '')
+                  .replace(/\s+/g, ' ')
+                  .trim();
     }
 
     generateId(username) {
@@ -156,18 +228,18 @@ async function main() {
         const dataPath = path.join(__dirname, '../data/players.json');
         const testData = {
             players: {
-                "TestUser": {
-                    id: "testuser",
-                    name: "TestUser",
+                "Void": {
+                    id: "void",
+                    name: "Void",
                     forum_data: {
-                        status: "💰+100 ⚡+50% 👁+25%",
-                        posts: 10,
+                        status: "💰+200 ⚡+13% 👁+312%",
+                        posts: 45,
                     },
-                    bonuses: { credits: 100, infection: 50, whisper: 25 },
+                    bonuses: { credits: 200, infection: 13, whisper: 312 },
                     game_stats: {
-                        credits: 1100,
-                        infection: { total: 50 },
-                        whisper: { total: 25 }
+                        credits: 1200,
+                        infection: { total: 13 },
+                        whisper: { total: 100 }
                     },
                     last_updated: new Date().toISOString()
                 }
