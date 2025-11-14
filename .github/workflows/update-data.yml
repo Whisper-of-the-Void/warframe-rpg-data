@@ -17,6 +17,8 @@ jobs:
       uses: actions/checkout@v4
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
+        # ВАЖНО: Получаем всю историю коммитов
+        fetch-depth: 0
         
     - name: Setup Node.js
       uses: actions/setup-node@v4
@@ -30,9 +32,22 @@ jobs:
     - name: Run data parser
       run: node scripts/updater.js
       
-    - name: Commit and push if changes
+    - name: Configure Git
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
+        
+    - name: Commit and push changes
+      run: |
         git add data/players.json
-        git diff --quiet && git diff --staged --quiet || (git commit -m "Auto-update player data" && git push)
+        # Проверяем есть ли изменения
+        if git diff --staged --quiet; then
+          echo "✅ Нет изменений для коммита"
+        else
+          echo "🔄 Обнаружены изменения, создаем коммит..."
+          git commit -m "Auto-update player data"
+          # Пуллим перед пушем чтобы избежать конфликтов
+          git pull --rebase origin main
+          git push origin main
+          echo "✅ Изменения успешно запушены"
+        fi
