@@ -4,8 +4,8 @@ const { JSDOM } = require('jsdom');
 const fs = require('fs');
 const path = require('path');
 
-// Импортируем конфигурацию разделов
-const { GAME_SECTIONS, FLOOD_SECTIONS } = require('./config/forum_sections.js');
+// ИСПРАВЛЕН ПУТЬ ИМПОРТА!
+const { GAME_SECTIONS, FLOOD_SECTIONS } = require('../config/forum_sections.js');
 
 class ForumParser {
     constructor() {
@@ -39,65 +39,41 @@ class ForumParser {
         const players = {};
         
         try {
-            // Используем JSDOM вместо DOMParser
             const dom = new JSDOM(html);
             const doc = dom.window.document;
 
-            const tables = doc.querySelectorAll('table');
-            console.log('📊 Найдено таблиц:', tables.length);
-
-            let membersTable = null;
+            // ТОЧНЫЙ СЕЛЕКТОР ДЛЯ ВАШЕГО ФОРУМА
+            const userTable = doc.querySelector('.usertable table');
             
-            // Ищем таблицу с пользователями - адаптируем под вашу структуру
-            tables.forEach((table, index) => {
-                const tableText = table.textContent;
-                console.log(`Таблица ${index}:`, tableText.substring(0, 100));
-                
-                // Пробуем разные варианты заголовков
-                if (tableText.includes('Имя') || 
-                    tableText.includes('Пользователь') ||
-                    tableText.includes('Участник')) {
-                    membersTable = table;
-                    console.log(`✅ Возможно, найдена таблица пользователей #${index}`);
-                }
-            });
-
-            if (!membersTable && tables.length > 0) {
-                // Берем первую таблицу как запасной вариант
-                membersTable = tables[0];
-                console.log('🔄 Используем первую таблицу как запасной вариант');
-            }
-
-            if (!membersTable) {
+            if (!userTable) {
                 console.error('❌ Таблица пользователей не найдена');
                 return players;
             }
 
-            // Парсим строки таблицы
-            const rows = membersTable.querySelectorAll('tr');
-            console.log('📋 Найдено строк:', rows.length);
+            console.log('✅ Найдена таблица пользователей с классом usertable');
 
-            for (let i = 0; i < rows.length; i++) {
-                const row = rows[i];
-                const cells = row.querySelectorAll('td, th');
-                
-                if (cells.length >= 2) {
-                    try {
-                        const username = cells[0].textContent.trim();
+            // Парсим строки таблицы (пропускаем заголовок thead)
+            const rows = userTable.querySelectorAll('tbody tr');
+            console.log('📋 Найдено строк пользователей:', rows.length);
+
+            rows.forEach((row, index) => {
+                try {
+                    const cells = row.querySelectorAll('td');
+                    
+                    if (cells.length >= 6) {
+                        // Извлекаем имя пользователя из ссылки
+                        const usernameLink = cells[0].querySelector('.usersname a');
+                        const username = usernameLink ? usernameLink.textContent.trim() : cells[0].textContent.trim();
                         
-                        // Пропускаем пустые строки или заголовки
-                        if (!username || username === '' || 
-                            username === 'Имя' || username === 'Пользователь' ||
-                            username.includes('@') || username.includes('mail')) continue;
+                        if (!username || username === '') return;
                         
-                        console.log(`👤 Найден пользователь: ${username}`);
+                        console.log(`👤 Обрабатываем пользователя: ${username}`);
                         players[username] = this.createPlayerData(username, cells);
-                        
-                    } catch (cellError) {
-                        console.error('❌ Ошибка обработки строки:', cellError);
                     }
+                } catch (cellError) {
+                    console.error(`❌ Ошибка обработки строки ${index}:`, cellError);
                 }
-            }
+            });
 
             console.log(`✅ Успешно обработано пользователей: ${Object.keys(players).length}`);
             return players;
@@ -109,19 +85,36 @@ class ForumParser {
     }
 
     createPlayerData(username, cells) {
-        // Для начала используем базовые данные
-        const bonuses = this.parseBonusesFromStatus('');
+        // Парсим бонусы из статуса (второй столбец)
+        const statusText = cells[1].textContent.trim();
+        const bonuses = this.parseBonusesFromStatus(statusText);
         
+        // Парсим репутацию (третий столбец)
+        const respectText = cells[2].textContent.trim();
+        const reputation = this.parseReputation(respectText);
+        
+        // Парсим количество сообщений (четвертый столбец)
+        const posts = parseInt(cells[3].textContent) || 0;
+        
+        // Дата регистрации (пятый столбец)
+        const registered = cells[4].textContent.trim();
+        
+        // Последний визит (шестой столбец)
+        const lastOnline = cells[5].textContent.trim();
+
         return {
             id: this.generateId(username),
             name: username,
             forum_data: {
-                status: cells[1]?.textContent?.trim() || '',
-                respect: '+0 -0',
-                posts: 0,
-                registered: 'Неизвестно',
-                last_online: 'Неизвестно',
-                days_since_registration: 0
+                status: statusText,
+                respect: respectText,
+                positive_reputation: reputation.positive,
+                negative_reputation: reputation.negative,
+                net_reputation: reputation.net,
+                posts: posts,
+                registered: registered,
+                last_online: lastOnline,
+                days_since_registration: this.calculateDaysSinceRegistration(registered)
             },
             bonuses: bonuses,
             game_stats: {
@@ -147,15 +140,53 @@ class ForumParser {
     }
 
     parseBonusesFromStatus(status) {
+        console.log(`🔍 Парсим бонусы из статуса: "${status}"`);
+        
         const creditsMatch = status.match(/💰([+-]?\d+)/);
         const infectionMatch = status.match(/⚡([+-]?\d+)%/);
         const whisperMatch = status.match(/👁([+-]?\d+)%/);
 
-        return {
+        const bonuses = {
             credits: creditsMatch ? parseInt(creditsMatch[1]) : 0,
             infection: infectionMatch ? parseInt(infectionMatch[1]) : 0,
             whisper: whisperMatch ? parseInt(whisperMatch[1]) : 0
         };
+
+        console.log(`✅ Распарсенные бонусы:`, bonuses);
+        return bonuses;
+    }
+
+    parseReputation(respectText) {
+        // Пример: "+0" или "+5 -2"
+        let positive = 0;
+        let negative = 0;
+
+        if (respectText.includes('-')) {
+            const parts = respectText.split(' ');
+            positive = parseInt(parts[0]) || 0;
+            negative = parseInt(parts[1]) || 0;
+        } else {
+            positive = parseInt(respectText) || 0;
+        }
+
+        return {
+            positive_reputation: positive,
+            negative_reputation: negative,
+            net_reputation: positive - negative
+        };
+    }
+
+    calculateDaysSinceRegistration(registeredDate) {
+        if (!registeredDate || registeredDate === 'Неизвестно') return 0;
+        
+        try {
+            const regDate = new Date(registeredDate);
+            const today = new Date();
+            return Math.floor((today - regDate) / (1000 * 60 * 60 * 24));
+        } catch (error) {
+            console.error('❌ Ошибка расчета даты для:', registeredDate);
+            return 0;
+        }
     }
 
     generateId(username) {
@@ -193,7 +224,8 @@ async function main() {
         // Выводим список обработанных пользователей
         console.log('📋 Обработанные пользователи:');
         Object.keys(players).forEach(username => {
-            console.log(`   - ${username}`);
+            const player = players[username];
+            console.log(`   - ${username}: 💰${player.bonuses.credits} ⚡${player.bonuses.infection}% 👁${player.bonuses.whisper}%`);
         });
     } else {
         console.log('❌ Не удалось получить данные игроков');
