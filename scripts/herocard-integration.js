@@ -23,12 +23,12 @@ class HeroCardIntegration {
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             
             const data = await response.json();
-            if (data && typeof data === 'object') {
-                this.playersData = data;
+            if (data && data.players && typeof data.players === 'object') {
+                this.playersData = data.players; // ← ИЗМЕНЕНИЕ ЗДЕСЬ: берем data.players
                 console.log('✅ Данные игроков загружены:', Object.keys(this.playersData).length);
                 console.log('📊 Доступные игроки:', Object.keys(this.playersData));
             } else {
-                throw new Error('Invalid data structure');
+                throw new Error('Invalid data structure - missing players object');
             }
         } catch (error) {
             console.error('❌ Ошибка загрузки данных:', error);
@@ -55,11 +55,13 @@ class HeroCardIntegration {
                 const heroCardContainer = post.querySelector('.herocard');
                 
                 if (heroCardContainer) {
+                    // ИЗМЕНЕНИЕ: this.playersData уже содержит объект players
                     if (this.playersData[playerName]) {
                         this.fillHeroCard(heroCardContainer, this.playersData[playerName], playerName);
                         processedCount++;
                     } else {
                         console.log(`❌ Данные не найдены для: "${playerName}"`);
+                        console.log(`📋 Доступные игроки:`, Object.keys(this.playersData));
                         this.showPlayerNotFound(heroCardContainer, playerName);
                     }
                 } else {
@@ -86,15 +88,6 @@ class HeroCardIntegration {
         if (headerAuthor) {
             const name = headerAuthor.textContent.trim();
             if (this.isValidPlayerName(name)) {
-                return name;
-            }
-        }
-        
-        // Способ 3: Ищем в профиле
-        const profileLink = post.querySelector('.pl-email.profile a');
-        if (profileLink) {
-            const name = profileLink.querySelector('span.acchide')?.textContent?.trim();
-            if (name && this.isValidPlayerName(name)) {
                 return name;
             }
         }
