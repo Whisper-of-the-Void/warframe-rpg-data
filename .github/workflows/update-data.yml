@@ -22,13 +22,8 @@ jobs:
       uses: actions/setup-node@v4
       with:
         node-version: '18'
-        # Убрали cache: 'npm'
+        # НЕТ cache и НЕТ установки зависимостей!
         
-    - name: Install dependencies
-      run: |
-        npm cache clean --force
-        npm install --no-audit --no-fund --prefer-offline
-      
     - name: Run data parser
       run: node scripts/updater.js
       
