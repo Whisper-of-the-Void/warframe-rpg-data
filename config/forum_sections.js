@@ -1,23 +1,16 @@
 // config/forum_sections.js
 const GAME_SECTIONS = {
-    roleplay: [7]  // Ролевые игры - игровые посты
+    roleplay: [7]
 };
 
 const FLOOD_SECTIONS = {
-    offtopic: [9],     // Оффтоп
-    evenings: [10],    // Вечеринки
-    diaries: [11],     // Дневники
-    contest: [12]      // Конкурсы
-};
-
-// Для парсера - полный список всех разделов
-const ALL_SECTIONS = {
-    ...GAME_SECTIONS,
-    ...FLOOD_SECTIONS
+    offtopic: [9],
+    evenings: [10],
+    diaries: [11],
+    contest: [12]
 };
 
 module.exports = {
     GAME_SECTIONS,
-    FLOOD_SECTIONS,
-    ALL_SECTIONS
+    FLOOD_SECTIONS
 };
