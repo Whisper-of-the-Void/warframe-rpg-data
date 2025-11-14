@@ -1,4 +1,5 @@
-module.exports = {
+// config/forum_sections.js
+export default {
     // Игровые разделы (основные игровые форумы)
     game: [1, 2, 3],
     
