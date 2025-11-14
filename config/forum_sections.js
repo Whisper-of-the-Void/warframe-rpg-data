@@ -1,12 +1,12 @@
 // config/forum_sections.js
 
 // ИГРОВЫЕ РАЗДЕЛЫ - посты здесь дают игровой прогресс
-const GAME_SECTIONS = {
+export const GAME_SECTIONS = {
     roleplay: [1, 7] // Точка Сингулярности и другие игровые разделы
 };
 
 // ФЛУДОВЫЕ РАЗДЕЛЫ - посты здесь не дают игрового прогресса
-const FLOOD_SECTIONS = {
+export const FLOOD_SECTIONS = {
     offtopic: [9],
     evenings: [10],
     diaries: [11],
@@ -14,7 +14,7 @@ const FLOOD_SECTIONS = {
 };
 
 // Функции для работы с разделами
-const SectionUtils = {
+export const SectionUtils = {
     // Получение всех ID игровых разделов
     getAllGameSectionIds() {
         return Object.values(GAME_SECTIONS).flat();
@@ -60,7 +60,8 @@ const SectionUtils = {
     }
 };
 
-module.exports = {
+// Экспорт по умолчанию для обратной совместимости
+export default {
     GAME_SECTIONS,
     FLOOD_SECTIONS,
     ...SectionUtils
