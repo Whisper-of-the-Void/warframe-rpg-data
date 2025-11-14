@@ -236,7 +236,47 @@ class HeroCardIntegration {
                     this.processHeroCards();
                 });
         }, this.cacheTime);
-
+// Добавляем в HeroCardIntegration класс:
+renderActivityStats(activityData) {
+    if (!activityData) return '';
+    
+    const gameRatio = activityData.game_posts / Math.max(activityData.total_posts, 1) * 100;
+    const floodRatio = activityData.flood_posts / Math.max(activityData.total_posts, 1) * 100;
+    const techRatio = activityData.technical_posts / Math.max(activityData.total_posts, 1) * 100;
+    
+    const trendIcon = {
+        'increasing': '📈',
+        'decreasing': '📉', 
+        'stable': '➡️'
+    }[activityData.activity_trend] || '➡️';
+    
+    return [
+        '<div class="herocard-activity">',
+        '<div class="activity-header">',
+        '<span class="activity-label">📊 Активность</span>',
+        '<span class="activity-trend">', trendIcon, '</span>',
+        '</div>',
+        '<div class="activity-stats">',
+        '<div class="activity-row">',
+        '<span class="activity-type">🎮 Игровые:</span>',
+        '<span class="activity-value">', activityData.game_posts, ' (', Math.round(gameRatio), '%)</span>',
+        '</div>',
+        '<div class="activity-row">',
+        '<span class="activity-type">💬 Флудовые:</span>',
+        '<span class="activity-value">', activityData.flood_posts, ' (', Math.round(floodRatio), '%)</span>',
+        '</div>',
+        '<div class="activity-row">',
+        '<span class="activity-type">🔧 Технические:</span>',
+        '<span class="activity-value">', activityData.technical_posts, ' (', Math.round(techRatio), '%)</span>',
+        '</div>',
+        '<div class="activity-row">',
+        '<span class="activity-type">⭐ Рейтинг:</span>',
+        '<span class="activity-value">', activityData.post_activity_score, '</span>',
+        '</div>',
+        '</div>',
+        '</div>'
+    ].join('');
+}
         console.log('✅ Быстрое автообновление запущено (каждые 2 минуты)');
     }
 
