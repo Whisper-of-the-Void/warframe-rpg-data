@@ -34,7 +34,7 @@
         "activity_level": "new",
         "activity_score": 0
       },
-      "last_updated": "2025-11-14T12:22:25.533Z"
+      "last_updated": "2025-11-14T12:25:29.756Z"
     },
     "Negan": {
       "id": "negan",
@@ -70,7 +70,7 @@
         "activity_level": "new",
         "activity_score": 0
       },
-      "last_updated": "2025-11-14T12:22:25.535Z"
+      "last_updated": "2025-11-14T12:25:29.757Z"
     },
     "PR-Cephalon": {
       "id": "pr_cephalon",
@@ -106,13 +106,13 @@
         "activity_level": "new",
         "activity_score": 0
       },
-      "last_updated": "2025-11-14T12:22:25.535Z"
+      "last_updated": "2025-11-14T12:25:29.758Z"
     }
   },
-  "last_updated": "2025-11-14T12:22:25.537Z",
+  "last_updated": "2025-11-14T12:25:29.759Z",
   "version": "1.0.0",
   "stats": {
     "total_players": 3,
-    "parsed_at": "2025-11-14T12:22:25.537Z"
+    "parsed_at": "2025-11-14T12:25:29.759Z"
   }
 }
