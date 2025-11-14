@@ -25,7 +25,9 @@ jobs:
         cache: 'npm'
         
     - name: Install dependencies
-      run: npm install --no-audit --no-fund  # ← ИЗМЕНЕНО
+      run: |
+        npm cache clean --force
+        npm install --no-audit --no-fund --prefer-offline
       
     - name: Run data parser
       run: node scripts/updater.js
