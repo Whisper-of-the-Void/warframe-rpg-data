@@ -9,7 +9,7 @@ const { GAME_SECTIONS, FLOOD_SECTIONS } = require('./config/forum_sections.js');
 
 class ForumParser {
     constructor() {
-        this.memberlistUrl = 'https://rusff.me/memberlist.php';
+        this.memberlistUrl = 'https://warframe.f-rpg.me/userlist.php';
         this.gameSections = GAME_SECTIONS;
         this.floodSections = FLOOD_SECTIONS;
     }
