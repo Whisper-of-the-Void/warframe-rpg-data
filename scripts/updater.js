@@ -1,10 +1,10 @@
 // scripts/updater.js
 const fetch = require('node-fetch');
 const { JSDOM } = require('jsdom');
+const iconv = require('iconv-lite');
 const fs = require('fs');
 const path = require('path');
 
-// ИСПРАВЛЕН ПУТЬ ИМПОРТА!
 const { GAME_SECTIONS, FLOOD_SECTIONS } = require('../config/forum_sections.js');
 
 class ForumParser {
@@ -25,8 +25,13 @@ class ForumParser {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
             
-            const html = await response.text();
+            // Получаем данные как buffer и конвертируем из windows-1251 в utf-8
+            const buffer = await response.buffer();
+            const html = iconv.decode(buffer, 'win1251');
+            
             console.log('✅ HTML получен, размер:', html.length, 'символов');
+            console.log('🔤 Кодировка: windows-1251 -> utf-8');
+            
             return this.extractPlayersFromHTML(html);
             
         } catch (error) {
@@ -42,11 +47,17 @@ class ForumParser {
             const dom = new JSDOM(html);
             const doc = dom.window.document;
 
-            // ТОЧНЫЙ СЕЛЕКТОР ДЛЯ ВАШЕГО ФОРУМА
+            // Точный селектор для вашего форума
             const userTable = doc.querySelector('.usertable table');
             
             if (!userTable) {
                 console.error('❌ Таблица пользователей не найдена');
+                // Попробуем найти любую таблицу с пользователями
+                const tables = doc.querySelectorAll('table');
+                console.log('📊 Все таблицы на странице:', tables.length);
+                tables.forEach((table, index) => {
+                    console.log(`Таблица ${index}:`, table.textContent.substring(0, 200));
+                });
                 return players;
             }
 
@@ -69,6 +80,13 @@ class ForumParser {
                         
                         console.log(`👤 Обрабатываем пользователя: ${username}`);
                         players[username] = this.createPlayerData(username, cells);
+                        
+                        // Логируем распарсенные данные для отладки
+                        const player = players[username];
+                        console.log(`   💰 Кредиты: ${player.bonuses.credits}`);
+                        console.log(`   ⚡ Заражение: ${player.bonuses.infection}%`);
+                        console.log(`   👁 Шёпот: ${player.bonuses.whisper}%`);
+                        console.log(`   📝 Сообщений: ${player.forum_data.posts}`);
                     }
                 } catch (cellError) {
                     console.error(`❌ Ошибка обработки строки ${index}:`, cellError);
@@ -221,27 +239,46 @@ async function main() {
         fs.writeFileSync(dataPath, JSON.stringify(dataToSave, null, 2));
         console.log('✅ Данные успешно сохранены в players.json');
         
-        // Выводим список обработанных пользователей
-        console.log('📋 Обработанные пользователи:');
+        // Выводим итоговый список
+        console.log('📋 Итоговый список пользователей:');
         Object.keys(players).forEach(username => {
             const player = players[username];
-            console.log(`   - ${username}: 💰${player.bonuses.credits} ⚡${player.bonuses.infection}% 👁${player.bonuses.whisper}%`);
+            console.log(`   - ${username}: 💰${player.game_stats.credits} ⚡${player.game_stats.infection.total}% 👁${player.game_stats.whisper.total}%`);
         });
     } else {
         console.log('❌ Не удалось получить данные игроков');
-        // Создаем пустой файл для тестирования
+        // Создаем тестовые данные для проверки
         const dataPath = path.join(__dirname, '../data/players.json');
-        const emptyData = {
-            players: {},
+        const testData = {
+            players: {
+                "TestUser": {
+                    id: "testuser",
+                    name: "TestUser",
+                    forum_data: {
+                        status: "💰+100 ⚡+50% 👁+25%",
+                        respect: "+5 -2",
+                        positive_reputation: 5,
+                        negative_reputation: 2,
+                        net_reputation: 3,
+                        posts: 10,
+                        registered: "2025-01-01",
+                        last_online: "Сегодня",
+                        days_since_registration: 19
+                    },
+                    bonuses: { credits: 100, infection: 50, whisper: 25 },
+                    game_stats: {
+                        credits: 1100,
+                        infection: { base: 0, bonus: 50, total: 50 },
+                        whisper: { base: 0, bonus: 25, total: 25 }
+                    },
+                    last_updated: new Date().toISOString()
+                }
+            },
             last_updated: new Date().toISOString(),
-            version: "1.0.0",
-            stats: {
-                total_players: 0,
-                parsed_at: new Date().toISOString()
-            }
+            version: "1.0.0"
         };
-        fs.writeFileSync(dataPath, JSON.stringify(emptyData, null, 2));
-        console.log('📁 Создан пустой файл players.json для тестирования');
+        fs.writeFileSync(dataPath, JSON.stringify(testData, null, 2));
+        console.log('📁 Создан тестовый файл players.json');
     }
 }
 
