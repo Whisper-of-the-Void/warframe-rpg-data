@@ -26,7 +26,8 @@ jobs:
         
     - name: Install dependencies
       run: |
-        npm install node-fetch@^2.6.7 jsdom@^22.0.0 iconv-lite@^0.6.3
+        npm cache clean --force
+        npm install --no-audit --no-fund --prefer-offline
       
     - name: Run posts analysis
       run: node scripts/updater.js --with-posts
