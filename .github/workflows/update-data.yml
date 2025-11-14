@@ -2,8 +2,14 @@ name: Update Player Data
 
 on:
   schedule:
-    - cron: '0 */6 * * *'  # Каждые 6 часов
-  workflow_dispatch:        # Ручной запуск
+    - cron: '0 */6 * * *'  # Основные данные каждые 6 часов
+  workflow_dispatch:
+    inputs:
+      with-posts:
+        description: 'Analyze user posts'
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -29,15 +35,17 @@ jobs:
         npm install node-fetch@^2.6.7 jsdom@^22.0.0 iconv-lite@^0.6.3
       
     - name: Run data parser
-      run: node scripts/updater.js
-      
-    - name: Analyze User Posts (Optional)
-      run: node scripts/updater.js --with-posts
+      run: |
+        if [ "${{ github.event.inputs.with-posts }}" = "true" ]; then
+          node scripts/updater.js --with-posts
+        else
+          node scripts/updater.js
+        fi
       
     - name: Commit and push changes
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
         git add data/players.json
-        git diff --staged --quiet || git commit -m "Auto-update player data [$(date +'%Y-%m-%d %H:%M')]"
+        git diff --staged --quiet || git commit -m "Auto-update player data [$(date +'%Y-%m-%d %H:%M')] ${{ github.event.inputs.with-posts && 'with posts analysis' || '' }}"
         git push origin main
