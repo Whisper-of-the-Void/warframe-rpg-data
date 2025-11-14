@@ -161,7 +161,8 @@ class HeroCardIntegration {
     }
 
     renderActivityStats(activityData) {
-        if (!activityData) return '';
+        // Показываем статистику активности только если есть данные
+        if (!activityData || !activityData.total_posts) return '';
         
         const totalPosts = activityData.total_posts || 0;
         const gamePosts = activityData.game_posts || 0;
@@ -182,7 +183,7 @@ class HeroCardIntegration {
         return [
             '<div class="herocard-activity">',
             '<div class="activity-header">',
-            '<span class="activity-label">📊 Активность</span>',
+            '<span class="activity-label">📊 Анализ активности</span>',
             '<span class="activity-trend">', trendIcon, '</span>',
             '</div>',
             '<div class="activity-stats">',
@@ -199,7 +200,7 @@ class HeroCardIntegration {
             '<span class="activity-value">', technicalPosts, ' (', Math.round(techRatio), '%)</span>',
             '</div>',
             '<div class="activity-row">',
-            '<span class="activity-type">⭐ Рейтинг:</span>',
+            '<span class="activity-type">⭐ Рейтинг активности:</span>',
             '<span class="activity-value">', activityScore, '</span>',
             '</div>',
             '</div>',
