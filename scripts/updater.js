@@ -175,23 +175,35 @@ class ForumParser {
     }
 
     parseReputation(respectText) {
-        // Пример: "+0" или "+5 -2"
+        console.log(`🔍 Парсим репутацию: "${respectText}"`);
+        
         let positive = 0;
-        let negative = 0;
-
-        if (respectText.includes('-')) {
-            const parts = respectText.split(' ');
-            positive = parseInt(parts[0]) || 0;
-            negative = parseInt(parts[1]) || 0;
+        
+        // Убираем все пробелы и лишние символы
+        const cleanText = respectText.trim();
+        
+        // Разные форматы, которые могут быть:
+        // "+5", "5", "10", "+10" и т.д.
+        
+        if (cleanText.startsWith('+')) {
+            // Формат: "+5" - берем все после плюса
+            positive = parseInt(cleanText.substring(1)) || 0;
         } else {
-            positive = parseInt(respectText) || 0;
+            // Формат: "5" или "10" - парсим напрямую
+            positive = parseInt(cleanText) || 0;
         }
-
-        return {
+        
+        // Убеждаемся, что репутация не отрицательная
+        positive = Math.max(0, positive);
+        
+        const reputation = {
             positive_reputation: positive,
-            negative_reputation: negative,
-            net_reputation: positive - negative
+            negative_reputation: 0,
+            net_reputation: positive
         };
+        
+        console.log(`✅ Распарсенная репутация:`, reputation);
+        return reputation;
     }
 
     calculateDaysSinceRegistration(registeredDate) {
